@@ -1,0 +1,60 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Environment variables / secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Packaging / build ---
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# --- Testing & coverage ---
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# --- Type checkers / linters ---
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.pytype/
+
+# --- Local databases & uploads ---
+*.db
+*.sqlite3
+uploads/
+media/
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Alembic (keep migrations, ignore local junk) ---
+# alembic/versions/ should be COMMITTED — don't ignore it
+
+# --- IDEs / editors ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Docker overrides (optional) ---
+docker-compose.override.yml
