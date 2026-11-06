@@ -1,5 +1,5 @@
-# Desafio 1 [PDF FILE](https://github.com/UPTomar-in-Aveiro-Tech-City-Hackathon/challenge1/blob/main/ficha_desafio_it_1.pdf)
-Serviço e/ou aplicação para Smart Cities, tendo como base a infraestrutura e os dados disponibilizados pelo Aveiro Tech City Living Lab. O desafio deste ano centra-se na utilização de dados reais da cidade de Aveiro, incentivando a soluções capazes de melhorar a experiência de quem vive, trabalha ou visita a cidade.
+# Desafio 2 [PDF FILE](https://github.com/UPTomar-in-Aveiro-Tech-City-Hackathon/challenge1/blob/main/ficha_desafio_it_2.pdf)
+Web app que Identifique e localize no mapa o mobiliário urbano de Aveiro a partir de imagens do Google Maps Street View e de vídeos gravados na rua, dispensando o levantamento no terreno. A aplicação deve reconhecer cada elemento nas imagens, calcular as suas coordenadas e guardá-lo num catálogo
 
-# Challenge 1 [PDF FILE](https://github.com/UPTomar-in-Aveiro-Tech-City-Hackathon/challenge1/blob/main/ficha_desafio_it_1.pdf)
-A service and/or application for Smart Cities, leveraging the infrastructure and data provided by the Aveiro Tech City Living Lab. This year's challenge focuses on using real data from the city of Aveiro, encouraging solutions capable of improving the experience of those who live in, work in, or visit the city.
+# Challenge 2 [PDF FILE](https://github.com/UPTomar-in-Aveiro-Tech-City-Hackathon/challenge1/blob/main/ficha_desafio_it_2.pdf)
+A web application that identifies and locates Aveiro’s street furniture on a map using images from Google Maps Street View and videos recorded on the street, thereby eliminating the need for on-site surveys. The application must recognise each item in the images, calculate its coordinates and store it in a catalogue
