@@ -1,6 +1,8 @@
+from app.api.endpoints import export
 from fastapi import FastAPI
 
-ROUTERS = []
+ROUTERS = [export.router]
+
 
 def register_routers(app: FastAPI) -> None:
     for router in ROUTERS:
