@@ -1,0 +1,56 @@
+paths:
+  shared_dir: ../data
+  images_subdir: images
+  labels_dir: data/labels
+  splits_dir: data/splits
+  weights_dir: weights
+  taxonomy_file: configs/taxonomy_pt.yaml
+
+privacy:
+  enabled: true
+  method: gaussian                      # gaussian | pixelate | black
+  margin: 0.2
+  conf: 0.25
+  face_weights: face.pt
+  plate_weights: plate.pt
+
+detection:
+  weights: detector.pt
+  conf: 0.30
+  iou: 0.50
+  imgsz: 960
+  device: auto                          # auto | cpu | cuda:0
+
+classification:
+  enabled: false
+  sign_weights: sign_cls.pt
+  container_weights: container_cls.pt
+
+geometry:
+  default_fov_deg: 90.0
+  default_camera_height_m: 1.5
+  camera_height_sigma_m: 0.3
+  pitch_sigma_deg: 1.5
+  ground_plane_max_distance_m: 15.0
+  methods: [size_prior, ground_plane]
+  fusion: inverse_variance              # inverse_variance | first
+  max_distance_m: 40.0
+  min_box_px: 12
+  bearing_sigma_deg: 2.0
+  gps_sigma_m: 3.0
+  depth:
+    enabled: false
+    model: depth_anything_v2            # depth_anything_v2 | metric3d | unidepth
+    weights: depth.pt
+
+dedup:
+  radius_m: {sign: 2.5, light: 4.0, waste: 5.0}
+  use_ray_check: true
+  use_appearance: false
+  appearance_min_cos: 0.7
+  max_confidence: 0.99
+
+service:
+  host: 0.0.0.0
+  port: 8000
+  mock: true
