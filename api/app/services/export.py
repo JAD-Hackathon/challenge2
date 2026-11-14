@@ -1,114 +1,64 @@
-"""Generic GeoJSON / CSV export of any spatial table registered in PostGIS.
-
-Tables are discovered through PostGIS's `geometry_columns` view, so any model with a
-geometry column becomes exportable without touching this module. Output coordinates
-are always WGS84 (EPSG:4326).
-"""
+"""GeoJSON / CSV export of any spatial table (queries live in repositories/spatial.py)."""
 
 import csv
 import io
-from collections.abc import Iterator
-from dataclasses import dataclass
-from typing import Any
+from collections.abc import Iterator, Sequence
+from datetime import date
 
-from sqlalchemy import text
+from app.core.exceptions import InvalidInputError, NotFoundError
+from app.repositories import spatial as spatial_repo
+from app.repositories.spatial import BBox, SpatialTable
+from sqlalchemy import RowMapping
 from sqlalchemy.orm import Session
 
-BBox = tuple[float, float, float, float]  # min_lon, min_lat, max_lon, max_lat
+
+def parse_bbox(bbox: str | None) -> BBox | None:
+    if bbox is None:
+        return None
+    try:
+        parts = tuple(float(v) for v in bbox.split(","))
+    except ValueError:
+        parts = ()
+    if len(parts) != 4 or parts[0] >= parts[2] or parts[1] >= parts[3]:
+        raise InvalidInputError("bbox must be 'min_lon,min_lat,max_lon,max_lat'")
+    return parts  # type: ignore[return-value]
 
 
-@dataclass(frozen=True)
-class SpatialTable:
-    schema: str
-    table: str
-    geom_column: str
-    srid: int
-    geometry_type: str
+def list_layers(db: Session) -> list[SpatialTable]:
+    return spatial_repo.list_spatial_tables(db)
 
 
-def list_spatial_tables(db: Session) -> list[SpatialTable]:
-    rows = db.execute(
-        text(
-            """
-            SELECT f_table_schema, f_table_name, f_geometry_column, srid, type
-            FROM geometry_columns
-            WHERE f_table_schema NOT IN ('topology', 'tiger')
-            ORDER BY f_table_schema, f_table_name
-            """
-        )
-    ).all()
-    return [SpatialTable(*r) for r in rows]
+def _resolve(db: Session, table: str, schema: str) -> SpatialTable:
+    t = spatial_repo.get_spatial_table(db, table, schema)
+    if t is None:
+        raise NotFoundError(f"No spatial table '{schema}.{table}'")
+    return t
 
 
-def get_spatial_table(
-    db: Session, table: str, schema: str = "public"
-) -> SpatialTable | None:
-    for t in list_spatial_tables(db):
-        if t.table == table and t.schema == schema:
-            return t
-    return None
+def _filename(table: str, ext: str) -> str:
+    return f"{table}_{date.today().isoformat()}.{ext}"
 
 
-def _q(db: Session, ident: str) -> str:
-    return db.get_bind().dialect.identifier_preparer.quote(ident)
+def export_geojson(
+    db: Session, table: str, schema: str = "public", bbox: str | None = None
+) -> tuple[str, str]:
+    """Returns (filename, geojson body)."""
+    box = parse_bbox(bbox)
+    t = _resolve(db, table, schema)
+    return _filename(table, "geojson"), spatial_repo.fetch_geojson(db, t, box)
 
 
-def _from_where(
-    db: Session, t: SpatialTable, bbox: BBox | None
-) -> tuple[str, dict[str, Any]]:
-    # Identifiers come from geometry_columns (validated), and are quoted anyway
-    sql = f"FROM {_q(db, t.schema)}.{_q(db, t.table)} AS t"
-    params: dict[str, Any] = {}
-    if bbox:
-        sql += (
-            f" WHERE ST_Intersects(t.{_q(db, t.geom_column)},"
-            f" ST_Transform(ST_MakeEnvelope(:minx, :miny, :maxx, :maxy, 4326),"
-            f" ST_SRID(t.{_q(db, t.geom_column)})))"
-        )
-        params = dict(zip(("minx", "miny", "maxx", "maxy"), bbox, strict=True))
-    return sql, params
+def export_csv(
+    db: Session, table: str, schema: str = "public", bbox: str | None = None
+) -> tuple[str, Iterator[str]]:
+    """Returns (filename, CSV chunks). Rows are fetched before streaming starts."""
+    box = parse_bbox(bbox)
+    t = _resolve(db, table, schema)
+    columns, rows = spatial_repo.fetch_rows(db, t, box)
+    return _filename(table, "csv"), _write_csv(columns, rows)
 
 
-def export_geojson(db: Session, t: SpatialTable, bbox: BBox | None = None) -> str:
-    """FeatureCollection built entirely by PostGIS; non-geometry columns become properties."""
-    geom = _q(db, t.geom_column)
-    from_where, params = _from_where(db, t, bbox)
-    sql = f"""
-        SELECT json_build_object(
-            'type', 'FeatureCollection',
-            'features', COALESCE(json_agg(json_build_object(
-                'type', 'Feature',
-                'geometry', ST_AsGeoJSON(ST_Transform(t.{geom}, 4326), 7)::json,
-                'properties', to_jsonb(t) - :geom_col
-            )), '[]'::json)
-        )::text
-        {from_where}
-    """
-    return db.execute(text(sql), {**params, "geom_col": t.geom_column}).scalar_one()
-
-
-def iter_csv(db: Session, t: SpatialTable, bbox: BBox | None = None) -> Iterator[str]:
-    """CSV with every non-geometry column plus latitude/longitude (and WKT for non-points)."""
-    geom = _q(db, t.geom_column)
-    from_where, params = _from_where(db, t, bbox)
-    is_point = t.geometry_type.upper() == "POINT"
-    if is_point:
-        extra = f"ST_Y(ST_Transform(t.{geom}, 4326)) AS latitude, ST_X(ST_Transform(t.{geom}, 4326)) AS longitude"
-    else:
-        extra = (
-            f"ST_Y(ST_Transform(ST_PointOnSurface(t.{geom}), 4326)) AS latitude, "
-            f"ST_X(ST_Transform(ST_PointOnSurface(t.{geom}), 4326)) AS longitude, "
-            f"ST_AsText(ST_Transform(t.{geom}, 4326)) AS wkt"
-        )
-    result = db.execute(text(f"SELECT t.*, {extra} {from_where}"), params)
-    columns = [c for c in result.keys() if c != t.geom_column]
-    rows = (
-        result.mappings().all()
-    )  # fetch now so the DB session can close before streaming
-    return _write_csv(columns, rows)
-
-
-def _write_csv(columns: list[str], rows) -> Iterator[str]:
+def _write_csv(columns: list[str], rows: Sequence[RowMapping]) -> Iterator[str]:
     buf = io.StringIO()
     writer = csv.writer(buf)
 

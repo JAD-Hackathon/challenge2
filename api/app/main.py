@@ -2,19 +2,22 @@ from contextlib import asynccontextmanager
 
 from app.api.deps import SessionDep
 from app.api.router import register_routers
+from app.core.exceptions import register_exception_handlers
 from app.database import engine
-from app.database.postgis import enable_postgis
+from app.database.postgis import create_tables, enable_postgis
 from fastapi import FastAPI
 from sqlalchemy import text
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    enable_postgis(engine)
+    enable_postgis(engine)  # must run before create_tables so Geometry columns work
+    create_tables(engine)
     yield
 
 
 app = FastAPI(lifespan=lifespan)
+register_exception_handlers(app)
 register_routers(app)
 
 

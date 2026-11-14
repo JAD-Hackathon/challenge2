@@ -16,6 +16,8 @@ class Settings(BaseSettings):
 
     DB_ECHO: bool = False
 
+    API_PREFIX: str = "/api"  # versioned routes live under {API_PREFIX}/v1, /v2, ...
+
     @computed_field
     @property
     def DATABASE_URL(self) -> URL:
