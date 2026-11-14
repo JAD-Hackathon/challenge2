@@ -1,0 +1,51 @@
+classes:
+  # signs
+
+  - name: sign.stop
+    label: "Stop"
+    ground: false
+    size: { dim: width, m: 0.6, tol: 0.15 }
+
+  - name: sign.yield
+    label: "Cedência de passagem"
+    ground: false
+    size: { dim: width, m: 0.7, tol: 0.20 }
+
+  - name: sign.speed_limit
+    label: "Limite de velocidade"
+    ground: false
+    size: { dim: width, m: 0.6, tol: 0.15 }
+
+  - name: sign.other
+    label: "Outro sinal"
+    ground: false
+    size: { dim: width, m: 0.6, tol: 0.30 }
+
+  # lighting
+
+  - name: light.street_lamp
+    label: "Candeeiro"
+    ground: true
+    size: { dim: height, m: 6.0, tol: 0.40 }
+
+  - name: light.street_pole
+    label: "Poste de luz"
+    ground: true
+    size: { dim: height, m: 6.0, tol: 0.40 }
+
+  # waste
+
+  - name: waste.underground
+    label: "Contentor subterrâneo"
+    ground: true
+    size: null
+
+  - name: waste.recycling_island
+    label: "Ecoponto (ilha de reciclagem)"
+    ground: true
+    size: { dim: height, m: 1.5, tol: 0.25 }
+
+  - name: waste.general
+    label: "Contentor indiferenciado"
+    ground: true
+    size: { dim: height, m: 1.2, tol: 0.25 }
