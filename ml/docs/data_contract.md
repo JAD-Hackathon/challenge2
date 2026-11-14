@@ -135,7 +135,7 @@ The raw video stays on our machines only (not in the shared folder, DB or UI). I
 ```json
 {"error": {"code": "invalid_meta", "message": "heading must be 0-360"}}
 ```
-Codes: `invalid_meta` (400), `unsupported_image` (415), `internal` (500).
+Codes: `invalid_meta` (400), `unsupported_image` (415), `internal` (500), `not_implemented` (501).
 
 ---
 
@@ -144,10 +144,4 @@ Codes: `invalid_meta` (400), `unsupported_image` (415), `internal` (500).
 - **API** sends images to `/infer`, saves observations and elements in PostGIS (plus author/licence/date per image), handles technician edits and export.
 - **ML** blurs, detects, locates, and runs dedup.
 - `GET /health` returns `{"status": "ok"}`.
-- ML provides a **mock mode** (`MOCK=1`) with fake data in this exact format, so the API and frontend can start now.
-
-## Still to agree
-
-- [✓] Shared folder path and URL for serving images.
-- [ ] Who triggers `/dedup` (button or automatically after a batch).
-- [ ] Final class list.
+- ML provides a **mock mode** (`ML_MOCK=1`) with fake data in this exact format, so the API and frontend can start now.
