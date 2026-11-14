@@ -31,7 +31,7 @@ classes:
   - name: light.street_pole
     label: "Poste de luz"
     ground: true
-    size: { dim: height, m: 6.0, tol: 0.40 }
+    size: { dim: height, m: 8.0, tol: 0.50 }
 
   # waste
 
