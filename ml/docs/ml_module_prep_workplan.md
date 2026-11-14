@@ -39,11 +39,19 @@ Goal of preparation: arrive at the hackathon with a **working template** where e
 
 ```
 ml/
+├── data/
+│    ├── labels/<image_id>.txt  # YOLO-format labels, same ID as the image (in the shared folder)
+│    └── splits/                # train / val / test lists
 ├── configs/
-│   ├── default.yaml            # models, thresholds, radii, methods
+│   ├── base.yaml               # models, thresholds, radii, methods
 │   └── taxonomy_pt.yaml        # class names, PT sign codes, mapping from MTSD/GTSDB
-├── src/ml/
-│   ├── schemas.py              # Image, Camera, Detection, Observation, Element
+├── src/
+│   ├── service/                # <- endpoints live here
+│   │   ├── main.py             # FastAPI app, /health
+│   │   ├── routes_infer.py     # POST /infer
+│   │   ├── routes_dedup.py     # POST /dedup
+│   │   ├── schemas.py          # pydantic models = the contract
+│   │   └── mock.py             # ML_MOCK=1 fake responses
 │   ├── io/                     # loaders: mapillary, kartaview, video frames
 │   ├── privacy/                # face + plate blur
 │   ├── detection/              # base.py + yolo.py, rtdetr.py, openvocab.py

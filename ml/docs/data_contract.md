@@ -147,6 +147,6 @@ Codes: `invalid_meta` (400), `unsupported_image` (415), `internal` (500).
 
 ## Still to agree
 
-- [ ] Shared folder path and URL for serving images.
+- [✓] Shared folder path and URL for serving images.
 - [ ] Who triggers `/dedup` (button or automatically after a batch).
 - [ ] Final class list.

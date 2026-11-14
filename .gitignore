@@ -1,0 +1,2 @@
+data/
+# data/images/<image_id>.jpg    # blurred images (ML writes, API reads, UI shows)
