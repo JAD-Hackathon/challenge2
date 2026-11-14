@@ -42,15 +42,19 @@ ml/
 ├── data/
 │    ├── labels/<image_id>.txt  # YOLO-format labels, same ID as the image (in the shared folder)
 │    └── splits/                # train / val / test lists
+├── weights/hf | torch | yolo   # pretrained weights, downloaded once, not in the repo
+│
 ├── configs/
 │   ├── base.yaml               # models, thresholds, radii, methods
-│   └── taxonomy_pt.yaml        # class names, PT sign codes, mapping from MTSD/GTSDB
+│   └── taxonomy_pt.yaml        # class list, ground flag, size priors
 ├── src/
-│   ├── service/                # <- endpoints live here
+│   ├── service/
 │   │   ├── main.py             # FastAPI app, /health
-│   │   ├── routes_infer.py     # POST /infer
-│   │   ├── routes_dedup.py     # POST /dedup
+│   │   ├── routes/
+│   │   │   ├── routes_infer.py # POST /infer
+│   │   │   └── routes_dedup.py # POST /dedup
 │   │   ├── schemas.py          # pydantic models = the contract
+│   │   ├── exceptions.py       # custom exceptions
 │   │   └── mock.py             # ML_MOCK=1 fake responses
 │   ├── io/                     # loaders: mapillary, kartaview, video frames
 │   ├── privacy/                # face + plate blur
@@ -82,26 +86,6 @@ Two integration options. Prefer **A** for the hackathon; keep **B** as fallback.
 - **A. Python service with endpoint(s):** `POST /infer` (image + camera metadata → observations), `POST /process-zone` (batch job → elements written to DB).
 - **B. Batch CLI writing to PostGIS directly:** `ml run --zone zone.geojson --config default.yaml`.
 
-Shared schemas (JSON):
-
-```json
-// Camera / image metadata
-{"image_id": "...", "source": "mapillary", "lat": 40.64, "lon": -8.65,
- "heading": 90.0, "pitch": 0.0, "fov": 90.0, "captured_at": "2023-05"}
-
-// Observation (output of ML per detection)
-{"class": "sign.stop", "score": 0.91, "bbox": [x1,y1,x2,y2],
- "est_lat": 40.6401, "est_lon": -8.6502, "est_distance_m": 12.4,
- "method": "size_prior", "image_id": "..."}
-
-// Element (after dedup)
-{"element_id": "...", "category": "sign", "type": "B2_stop",
- "lat": ..., "lon": ..., "confidence": 0.87, "n_observations": 3,
- "observation_ids": ["..."]}
-```
-
-Open point with teammates: who runs dedup, ML or API? I suggest **ML owns it** (it's geometry), and the API only stores/serves results and handles human corrections.
-
 ---
 
 ## 3. Phased plan
@@ -109,11 +93,11 @@ Open point with teammates: who runs dedup, ML or API? I suggest **ML owns it** (
 Phases are ordered by priority, not fixed dates. Adjust to the number of days before the hackathon.
 
 ### Phase 1: Foundations (do first)
-- [ ] Repo skeleton, `pyproject`, Docker image with GPU/CPU variants, pre-commit, tests.
-- [ ] Pydantic schemas and config loader.
-- [ ] Agree and freeze the **API contract** with teammates; publish an OpenAPI/JSON example file.
-- [ ] Mock endpoint returning fake observations so frontend/API are not blocked.
-- [ ] Check compute: local GPU? Colab/Kaggle? Note limits.
+- [✓] Repo skeleton, `pyproject`, Docker image with GPU/CPU variants, pre-commit, tests.
+- [✓] Pydantic schemas and config loader.
+- [✓] Agree and freeze the **API contract** with teammates; publish an OpenAPI/JSON example file.
+- [✓] Mock endpoint returning fake observations so frontend/API are not blocked.
+- [✓] Check compute: local GPU? Colab/Kaggle? Note limits.
 
 ### Phase 2: Data and ground truth
 - [ ] Pick a **practice zone** in Aveiro (a street with signs, lamps, ecopontos).
@@ -122,7 +106,7 @@ Phases are ordered by priority, not fixed dates. Adjust to the number of days be
 - [ ] Check Mapillary coverage density per candidate street; this decides the pilot zone.
 - [ ] Build a **ground-truth set**: manually mark ~30–50 objects (class + lat/lon) per category in the practice zone.
 - [ ] Collect public datasets: MTSD, GTSDB/GTSRB, Mapillary Vistas (check licences), Open Images street-furniture classes.
-- [ ] Write the **taxonomy mapping** (public labels → Portuguese sign codes → MVP class subset).
+- [ ] Write the **label mapping** inside the dataset conversion script (public labels, e.g. MTSD → our classes in `taxonomy_pt.yaml`).
 - [ ] Set up annotation tool (CVAT or Label Studio); start labelling lamps and waste containers (these have no ready dataset).
 
 ### Phase 3: Detection and classification
@@ -144,11 +128,12 @@ Implement each behind a common `DistanceEstimator` interface returning `(distanc
 - [ ] `camera.py`: intrinsics from FOV, bbox → bearing, equirectangular panorama → perspective crops with known heading/pitch/FOV.
 - [ ] `geo.py`: local ENU projection with `pyproj`; destination point from lat/lon + bearing + distance.
 - [ ] **SizePriorEstimator**: table of standard object heights (signs, lamp heights, container sizes) in config.
-- [ ] **GroundPlaneEstimator**: camera height + base of bbox; flag when the base is occluded or the bbox is cropped at the image edge.
+- [ ] **GroundPlaneEstimator**: camera height + base of bbox; flag when the base is occluded or the bbox is cropped at the image edge. Use only up to `ground_plane_max_distance_m` (~15 m) and add the height/pitch error to `uncertainty_m`.
 - [ ] **DepthEstimator**: wrappers for Depth Anything V2, Metric3D/UniDepth; read depth at the bbox (median of a robust region); optional per-model scale calibration against ground truth.
 - [ ] **Triangulation**: least-squares intersection of 2+ rays, with outlier rejection (RANSAC) and uncertainty.
 - [ ] **Fusion strategy** (config): choose single method, or weighted combination by uncertainty, e.g. size prior + ground plane + depth, then refine with triangulation within clusters.
 - [ ] Road-geometry sanity check: pull OSM road lines (Overpass); reject or snap objects that fall in the middle of the carriageway.
+- [ ] **Calibrate** default camera height (and a pitch offset) per source on the ground truth (small grid search).
 - [ ] **Benchmark script**: run every method on the ground-truth set and output median/90th-percentile error in metres, per category. This decides the default method at the hackathon.
 
 ### Phase 6: Deduplication and confidence
@@ -177,8 +162,8 @@ Implement each behind a common `DistanceEstimator` interface returning `(distanc
 ---
 
 ## 4. Priorities if time is short
-**Must have:** schemas and contract, Mapillary downloader with attribution fields, sign detector baseline, blur, size-prior + ground-plane geolocation, basic clustering dedup, benchmark script, Docker.
-**Should have:** fine-tuned lamp and waste detectors, depth estimator, triangulation, evaluation report.
+**Must have:** schemas and contract, Mapillary downloader with attribution fields, sign detector baseline, blur, size-prior + ground-plane geolocation, basic clustering dedup + triangulation within clusters, benchmark script, Docker.
+**Should have:** fine-tuned lamp and waste detectors, depth estimator, evaluation report.
 **Nice to have:** video tracking, appearance embeddings, active learning, OSM snapping.
 
 ---
@@ -196,6 +181,7 @@ Implement each behind a common `DistanceEstimator` interface returning `(distanc
 | Risk | Mitigation |
 |------|-----------|
 | Depth model gives wrong scale | Calibrate on ground truth; prefer metric models; fall back to size prior/ground plane |
+| Camera height / pitch unknown (ground plane) | Default height per source, calibrate on ground truth, short range only, large uncertainty; rely on size prior and triangulation |
 | No data for lamps/waste | Start labelling early; open-vocab pre-labelling |
 | Sign classes mismatch with Portuguese codes | Taxonomy mapping + small fine-tune on local images |
 | Sparse or poor-quality crowd-sourced imagery | Choose zone by coverage; own video; handle fisheye/unknown intrinsics per sequence |
