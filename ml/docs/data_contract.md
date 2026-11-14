@@ -52,7 +52,7 @@ Between the **API** and the **ML service**. Two endpoints. Change anything → t
   "observations": [
     {
       "observation_id": "a1b2",
-      "class": "sign.speed_limit",
+      "type": "sign.speed_limit",
       "score": 0.91,
       "bbox_xyxy": [412, 220, 468, 280],
       "bearing_deg": 94.1,
@@ -96,7 +96,8 @@ Between the **API** and the **ML service**. Two endpoints. Change anything → t
       "lon": -8.65351,
       "confidence": 0.87,
       "observation_ids": ["a1b2", "c3d4", "e5f6"],
-      "best_observation_id": "a1b2"
+      "best_observation_id": "a1b2",
+      "status": "auto"
     }
   ],
   "unassigned_observation_ids": [],
