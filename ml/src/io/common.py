@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import argparse
 import os
 import uuid
 import time
+from collections import defaultdict
 from pathlib import Path
 from collections.abc import Iterable
 from typing import Literal, Any, Callable
@@ -10,6 +12,7 @@ from typing import Literal, Any, Callable
 import requests
 from pydantic import BaseModel, ConfigDict, Field
 from src.config import ML_ROOT
+from src.geometry.helpers import distance_m
 
 DATA_DIR = ML_ROOT / "data"
 RAW_DIR = DATA_DIR / "raw"
@@ -128,7 +131,7 @@ def download_image(
 ) -> ImageRecord:
     """
     Fetch to RAW_DIR/<source>/<source_id>.jpg (skips if present). Returns the record
-    with cache_path and, if Pillow is installed, width/height.
+    with save_path and, if Pillow is installed, width/height.
     """
     rel_path = f"{record.source}/{record.source_id}.jpg"
     out = save_dir / rel_path
@@ -138,7 +141,7 @@ def download_image(
             raise ValueError(f"not an image: {r.headers.get('content-type')} ({url})")
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(r.content)
-    update: dict[str, Any] = {"cache_path": rel_path}
+    update: dict[str, Any] = {"save_path": rel_path}
     try:
         from PIL import Image
 
@@ -156,12 +159,17 @@ def fetch_images(
     to_record: Callable[[dict], ImageRecord | None],
     url_of: Callable[[dict], str | None],
     max_images: int,
+    per_sequence: int | None = None,
+    min_spacing_m: float = 0.0,
 ) -> int:
     """
     Generic loader loop: filter -> record -> download -> manifest.
+    `per_sequence` caps images per source sequence; `min_spacing_m` skips an image
+    closer than that to one already kept from the same sequence (spreads the sample).
     Returns the manifest size.
     """
     pending: list[ImageRecord] = []
+    kept: dict[str | None, list[tuple[float, float]]] = defaultdict(list)
     total = ok = failed = 0
     for d in items:
         if ok >= max_images:
@@ -171,8 +179,16 @@ def fetch_images(
         record, url = to_record(d), url_of(d)
         if record is None or not url:
             continue
+        seen = kept[record.sequence_id]
+        if per_sequence is not None and len(seen) >= per_sequence:
+            continue
+        if min_spacing_m and any(
+            distance_m(record.lat, record.lon, *p) < min_spacing_m for p in seen
+        ):
+            continue
         try:
             pending.append(download_image(record, url))
+            seen.append((record.lat, record.lon))
             ok += 1
         except (requests.RequestException, RuntimeError, ValueError) as e:
             failed += 1
@@ -185,3 +201,24 @@ def fetch_images(
     if failed:
         print(f"{failed} downloads failed")
     return total
+
+
+# cli
+
+
+def add_spread_args(parser: argparse.ArgumentParser) -> None:
+    """Add the sample-spreading options shared by all loaders."""
+    parser.add_argument(
+        "--per-sequence", type=int, default=None, help="max images per source sequence"
+    )
+    parser.add_argument(
+        "--min-spacing",
+        type=float,
+        default=0.0,
+        help="min metres between kept images of one sequence",
+    )
+
+
+def spread_from_args(args: argparse.Namespace) -> dict[str, Any]:
+    """Keyword arguments for `fetch_images` from parsed CLI args."""
+    return {"per_sequence": args.per_sequence, "min_spacing_m": args.min_spacing}

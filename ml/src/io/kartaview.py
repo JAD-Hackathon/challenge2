@@ -16,7 +16,14 @@ from src.geometry.helpers import (
     parse_bbox,
     tile_bbox,
 )
-from src.io.common import ImageRecord, fetch_images, make_image_id, request_retry
+from src.io.common import (
+    ImageRecord,
+    add_spread_args,
+    fetch_images,
+    make_image_id,
+    request_retry,
+    spread_from_args,
+)
 
 API_URL = "https://api.kartaview.org/1.0/list/nearby-photos/"
 STORAGE_DOMAIN = "openstreetcam.org"
@@ -170,15 +177,21 @@ def image_url(d: dict, size: str = "name") -> str | None:
 
 
 def fetch(
-    bbox: BBox, max_images: int, size: str = "name", include_panos: bool = False
+    bbox: BBox,
+    max_images: int,
+    size: str = "name",
+    include_panos: bool = False,
+    **spread,
 ) -> int:
-    """Download usable images in `bbox`. Returns the manifest size."""
+    """Download usable images in `bbox`. Returns the manifest size.
+    `spread`: per_sequence, min_spacing_m (see `fetch_images`)."""
     return fetch_images(
         search_bbox(bbox),
         keep=lambda d: is_usable(d, include_panos),
         to_record=to_record,
         url_of=lambda d: image_url(d, size),
         max_images=max_images,
+        **spread,
     )
 
 
@@ -217,6 +230,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--panos", action="store_true", help="also download 360 panoramas"
     )
+    add_spread_args(parser)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument(
         "--probe", action="store_true", help="print the first raw item and exit"
@@ -236,6 +250,7 @@ if __name__ == "__main__":
     elif args.count_only:
         print(json.dumps(summarize(args.bbox), indent=2))
     else:
+        spread = spread_from_args(args)
         print(
-            f"manifest now has {fetch(args.bbox, args.max, args.size, args.panos)} images"
+            f"manifest now has {fetch(args.bbox, args.max, args.size, args.panos, **spread)} images"
         )

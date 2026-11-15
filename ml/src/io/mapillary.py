@@ -8,7 +8,14 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 from src.geometry.helpers import BBox, parse_bbox, tile_bbox
-from src.io.common import ImageRecord, fetch_images, make_image_id, request_retry
+from src.io.common import (
+    ImageRecord,
+    add_spread_args,
+    fetch_images,
+    make_image_id,
+    request_retry,
+    spread_from_args,
+)
 
 load_dotenv()
 
@@ -98,14 +105,16 @@ def to_record(data: dict) -> ImageRecord | None:
     )
 
 
-def fetch(bbox: BBox, max_images: int, include_panos: bool = False) -> int:
-    """Download usable images in `bbox`. Returns the manifest size."""
+def fetch(bbox: BBox, max_images: int, include_panos: bool = False, **spread) -> int:
+    """Download usable images in `bbox`. Returns the manifest size.
+    `spread`: per_sequence, min_spacing_m (see `fetch_images`)."""
     return fetch_images(
         search_tiled(bbox),
         keep=lambda d: is_usable(d, include_panos),
         to_record=to_record,
         url_of=lambda d: d.get("thumb_2048_url"),
         max_images=max_images,
+        **spread,
     )
 
 
@@ -121,5 +130,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--panos", action="store_true", help="also download 360 panoramas"
     )
+    add_spread_args(parser)
     args = parser.parse_args()
-    print(f"manifest now has {fetch(args.bbox, args.max, args.panos)} images")
+    spread = spread_from_args(args)
+    print(f"manifest now has {fetch(args.bbox, args.max, args.panos, **spread)} images")
