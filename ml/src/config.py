@@ -89,6 +89,7 @@ class DepthConfig(_Cfg):
 class GeometryConfig(_Cfg):
     default_fov_deg: float = Field(90.0, gt=0, lt=180)
     default_camera_height_m: float = Field(1.5, gt=0)
+    default_camera_type: Literal["perspective", "equirectangular"] = "perspective"
     camera_height_sigma_m: float = Field(0.3, gt=0)
     pitch_sigma_deg: float = Field(1.5, gt=0)
     ground_plane_max_distance_m: float = Field(15.0, gt=0)

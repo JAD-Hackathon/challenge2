@@ -28,6 +28,7 @@ Between the **API** and the **ML service**. Two endpoints. Change anything → t
   "lon": -8.6538,
   "heading": 92.5,
   "fov": 90.0,
+  "camera_type": null,
   "camera_height_m": null,
   "source": "mapillary",
   "sequence_id": null,
@@ -39,6 +40,7 @@ Between the **API** and the **ML service**. Two endpoints. Change anything → t
 |-------|---------|
 | `image_id`, `lat`, `lon`, `heading` | **Required** (without them we can't compute a position) |
 | `fov` | Optional, `null` → default from ML config (less accurate bearing) |
+| `camera_type` | Optional, `null` → default from config |
 | `camera_height_m` | Optional, `null` → default from config |
 | `source` | Optional (`mapillary`, `kartaview`, `video`); lets ML pick default camera settings |
 | `sequence_id`, `frame_index` | Only for video frames, otherwise `null` |
