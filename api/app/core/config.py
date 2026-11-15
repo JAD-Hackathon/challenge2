@@ -18,6 +18,10 @@ class Settings(BaseSettings):
 
     API_PREFIX: str = "/api"  # versioned routes live under {API_PREFIX}/v1, /v2, ...
 
+    ML_SERVICE_URL: str = "http://localhost:8001"
+    ML_TIMEOUT_S: float = 120.0  # /infer runs detection + blurring, can be slow on CPU
+    SHARED_DIR: str = "../data"  # ML writes blurred images to <SHARED_DIR>/images/<image_id>.jpg
+
     @computed_field
     @property
     def DATABASE_URL(self) -> URL:
