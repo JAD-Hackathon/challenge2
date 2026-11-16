@@ -26,9 +26,11 @@
 <body data-bs-spy="scroll">
     @yield('content')
 
+    @include('layouts.footer')
+
     <!-- JAVASCRIPT -->
     @livewireScripts
+    @include('layouts.vendor-scripts')
     @stack('scripts')
-    
 </body>
 </html>

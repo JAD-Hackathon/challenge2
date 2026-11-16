@@ -1,0 +1,1 @@
+{{-- <script src="{{ URL::asset('build/resources/js/app.js') }}"></script> --}}
