@@ -27,6 +27,7 @@ dependencies = [
     "ultralytics>=8.4.212",
     "uvicorn[standard]>=0.54.0",
     "python-dotenv>=1.2.4",
+    "transformers>=5.23.0",
 ]
 
 [dependency-groups]
