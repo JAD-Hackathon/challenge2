@@ -2,13 +2,13 @@
 
 import csv
 import io
-from collections.abc import Iterator, Sequence
+import json
+from collections.abc import Iterator, Mapping, Sequence
 from datetime import date
 
 from app.core.exceptions import InvalidInputError, NotFoundError
 from app.repositories import spatial as spatial_repo
 from app.repositories.spatial import BBox, SpatialTable
-from sqlalchemy import RowMapping
 from sqlalchemy.orm import Session
 
 
@@ -35,7 +35,7 @@ def _resolve(db: Session, table: str, schema: str) -> SpatialTable:
     return t
 
 
-def _filename(table: str, ext: str) -> str:
+def export_filename(table: str, ext: str) -> str:
     return f"{table}_{date.today().isoformat()}.{ext}"
 
 
@@ -45,7 +45,7 @@ def export_geojson(
     """Returns (filename, geojson body)."""
     box = parse_bbox(bbox)
     t = _resolve(db, table, schema)
-    return _filename(table, "geojson"), spatial_repo.fetch_geojson(db, t, box)
+    return export_filename(table, "geojson"), spatial_repo.fetch_geojson(db, t, box)
 
 
 def export_csv(
@@ -55,10 +55,15 @@ def export_csv(
     box = parse_bbox(bbox)
     t = _resolve(db, table, schema)
     columns, rows = spatial_repo.fetch_rows(db, t, box)
-    return _filename(table, "csv"), _write_csv(columns, rows)
+    return export_filename(table, "csv"), write_csv(columns, rows)
 
 
-def _write_csv(columns: list[str], rows: Sequence[RowMapping]) -> Iterator[str]:
+def _cell(value: object) -> object:
+    # JSON columns (e.g. attributes) and arrays (bbox_xyxy) as JSON, not Python repr
+    return json.dumps(value, ensure_ascii=False) if isinstance(value, dict | list) else value
+
+
+def write_csv(columns: list[str], rows: Sequence[Mapping[str, object]]) -> Iterator[str]:
     buf = io.StringIO()
     writer = csv.writer(buf)
 
@@ -72,5 +77,5 @@ def _write_csv(columns: list[str], rows: Sequence[RowMapping]) -> Iterator[str]:
     writer.writerow(columns)
     yield flush()
     for row in rows:
-        writer.writerow([row[c] for c in columns])
+        writer.writerow([_cell(row[c]) for c in columns])
         yield flush()

@@ -20,6 +20,10 @@ class InvalidInputError(AppError):
     status_code = 422
 
 
+class TooLargeError(AppError):
+    status_code = 413
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def _handle_app_error(_: Request, exc: AppError) -> JSONResponse:

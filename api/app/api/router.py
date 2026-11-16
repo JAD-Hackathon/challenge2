@@ -8,5 +8,8 @@ VERSIONED_ROUTERS: list[APIRouter] = [v1_router]
 
 
 def register_routers(app: FastAPI) -> None:
-    for router in VERSIONED_ROUTERS:
+    routers = VERSIONED_ROUTERS
+    if settings.API_MOCK:  # same routes, fake data (see app/mocks)
+        from app.mocks.router import VERSIONED_ROUTERS as routers
+    for router in routers:
         app.include_router(router, prefix=settings.API_PREFIX)

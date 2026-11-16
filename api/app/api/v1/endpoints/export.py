@@ -17,7 +17,7 @@ BBoxQuery = Annotated[
 SchemaQuery = Annotated[str, Query()]
 
 
-def _attachment(filename: str) -> dict[str, str]:
+def attachment(filename: str) -> dict[str, str]:
     return {"Content-Disposition": f'attachment; filename="{filename}"'}
 
 
@@ -41,14 +41,12 @@ def export_geojson(
     db: SessionDep, table: str, bbox: BBoxQuery = None, schema: SchemaQuery = "public"
 ):
     filename, body = export_service.export_geojson(db, table, schema, bbox)
-    return Response(content=body, media_type="application/geo+json", headers=_attachment(filename))
+    return Response(content=body, media_type="application/geo+json", headers=attachment(filename))
 
 
 @router.get("/{table}.csv")
-def export_csv(
-    db: SessionDep, table: str, bbox: BBoxQuery = None, schema: SchemaQuery = "public"
-):
+def export_csv(db: SessionDep, table: str, bbox: BBoxQuery = None, schema: SchemaQuery = "public"):
     filename, chunks = export_service.export_csv(db, table, schema, bbox)
     return StreamingResponse(
-        chunks, media_type="text/csv; charset=utf-8", headers=_attachment(filename)
+        chunks, media_type="text/csv; charset=utf-8", headers=attachment(filename)
     )

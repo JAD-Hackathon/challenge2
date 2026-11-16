@@ -18,9 +18,19 @@ class Settings(BaseSettings):
 
     API_PREFIX: str = "/api"  # versioned routes live under {API_PREFIX}/v1, /v2, ...
 
+    # true -> routes are served from app/mocks (in-memory data, no DB or ML needed)
+    API_MOCK: bool = False
+
     ML_SERVICE_URL: str = "http://localhost:8001"
     ML_TIMEOUT_S: float = 120.0  # /infer runs detection + blurring, can be slow on CPU
+    ML_VIDEO_TIMEOUT_S: float = 900.0  # /infer-video does that for every frame of a video
     SHARED_DIR: str = "../data"  # ML writes blurred images to <SHARED_DIR>/images/<image_id>.jpg
+
+    MAX_BATCH_SIZE: int = 20  # images per POST /images request
+    MAX_VIDEO_MB: int = 1024  # biggest video accepted by POST /videos
+    # Prefix of image URLs in responses. Use an absolute URL (http://localhost:8000/media)
+    # if the browser can't reach the API on the same origin. The path must stay /media.
+    MEDIA_URL: str = "/media"
 
     @computed_field
     @property

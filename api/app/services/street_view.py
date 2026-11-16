@@ -1,4 +1,8 @@
-"""Turn raw Mapillary (API v4) / KartaView (API v2) image records into ML CameraMeta.
+"""Turn raw Mapillary (API v4) / KartaView (API v2) image records into ImageMeta.
+
+The web downloads the images from those sites and sends them to POST /images with the site's
+record as meta ({"mapillary": {...}} or {"kartaview": {...}}). This module works out position,
+heading, field of view and attribution (both sites are CC BY-SA 4.0, which requires credit).
 
 Returns None for images the ML service can't use yet (no position/heading, 360° panoramas).
 """
@@ -6,16 +10,18 @@ Returns None for images the ML service can't use yet (no position/heading, 360°
 import math
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
+from datetime import UTC, datetime
 from typing import Any
 
-from app.schemas.ml import CameraMeta
+from app.schemas.image import ImageMeta
 
 # Fields to request from Mapillary: GET https://graph.mapillary.com/images?fields=...
 MAPILLARY_FIELDS = (
     "id,computed_geometry,geometry,computed_compass_angle,compass_angle,"
-    "camera_type,camera_parameters,width,height,sequence,captured_at,thumb_2048_url"
+    "camera_type,camera_parameters,width,height,sequence,captured_at,creator,thumb_2048_url"
 )
 
+LICENSE = "CC BY-SA 4.0"  # Mapillary and KartaView imagery
 PANORAMA_TYPES = {"spherical", "equirectangular"}
 
 
@@ -49,7 +55,11 @@ def _mapillary_fov(image: Mapping[str, Any]) -> float | None:
     return _valid_fov(math.degrees(2 * math.atan(half_width / focal)))
 
 
-def from_mapillary(image: Mapping[str, Any]) -> CameraMeta | None:
+def _username(value: Any) -> str | None:
+    return value.get("username") if isinstance(value, Mapping) else None
+
+
+def from_mapillary(image: Mapping[str, Any]) -> ImageMeta | None:
     if image.get("camera_type") in PANORAMA_TYPES:
         return None
 
@@ -63,7 +73,8 @@ def from_mapillary(image: Mapping[str, Any]) -> CameraMeta | None:
     lon, lat = coords[0], coords[1]  # GeoJSON order is [lon, lat]
 
     sequence = image.get("sequence")
-    return CameraMeta(
+    captured_ms = _float(image.get("captured_at"))  # ms since epoch
+    return ImageMeta(
         image_id=f"mly_{image['id']}",  # prefix: Mapillary and KartaView ids can collide
         lat=lat,
         lon=lon,
@@ -72,10 +83,13 @@ def from_mapillary(image: Mapping[str, Any]) -> CameraMeta | None:
         source="mapillary",
         sequence_id=str(sequence) if sequence else None,
         frame_index=None,  # set by assign_frame_indexes()
+        author=_username(image.get("creator")),
+        license=LICENSE,
+        captured_at=datetime.fromtimestamp(captured_ms / 1000, UTC) if captured_ms else None,
     )
 
 
-def from_kartaview(photo: Mapping[str, Any]) -> CameraMeta | None:
+def from_kartaview(photo: Mapping[str, Any]) -> ImageMeta | None:
     if str(photo.get("projection", "")).upper() == "SPHERE":
         return None
 
@@ -86,7 +100,7 @@ def from_kartaview(photo: Mapping[str, Any]) -> CameraMeta | None:
 
     sequence_id = photo.get("sequenceId")
     index = _float(photo.get("sequenceIndex"))
-    return CameraMeta(
+    return ImageMeta(
         image_id=f"kv_{photo['id']}",
         lat=lat,
         lon=lon,
@@ -95,25 +109,35 @@ def from_kartaview(photo: Mapping[str, Any]) -> CameraMeta | None:
         source="kartaview",
         sequence_id=str(sequence_id) if sequence_id is not None else None,
         frame_index=int(index) if index is not None and index >= 0 else None,
+        author=photo.get("username") or _username(photo.get("user")),
+        license=LICENSE,
+        captured_at=_kartaview_date(photo.get("shotDate")),
     )
 
 
-def assign_frame_indexes(
-    metas: Iterable[CameraMeta], captured_at: Mapping[str, int]
-) -> list[CameraMeta]:
-    """Mapillary has no frame index: order each sequence by capture time (ms epoch).
+def _kartaview_date(value: Any) -> datetime | None:
+    """e.g. '2019-07-09 09:11:43', read as UTC."""
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
-    `captured_at` maps image_id -> captured_at. Images that already have a frame_index are kept as-is.
-    Indexes are relative to the images in this batch, not to the full sequence.
+
+def assign_frame_indexes(metas: Iterable[ImageMeta]) -> None:
+    """Mapillary has no frame index: number each sequence's images by capture time.
+
+    Images that already have a frame_index are left alone. Indexes are relative to the images
+    of this batch, not to the full sequence.
     """
-    metas = list(metas)
-    by_sequence: dict[str, list[CameraMeta]] = defaultdict(list)
+    by_sequence: dict[str, list[ImageMeta]] = defaultdict(list)
     for meta in metas:
-        if meta.sequence_id and meta.frame_index is None and meta.image_id in captured_at:
+        if meta.sequence_id and meta.frame_index is None and meta.captured_at:
             by_sequence[meta.sequence_id].append(meta)
 
     for group in by_sequence.values():
-        group.sort(key=lambda m: captured_at[m.image_id])
+        group.sort(key=lambda m: m.captured_at)  # type: ignore[arg-type, return-value]
         for index, meta in enumerate(group):
             meta.frame_index = index
-    return metas

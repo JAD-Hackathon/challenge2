@@ -1,5 +1,11 @@
 from app.database.base import Base
+from geoalchemy2 import WKTElement
 from sqlalchemy import Engine, text
+
+
+def point(lat: float, lon: float) -> WKTElement:
+    """Value for a POINT(4326) column. WKT order is lon, lat."""
+    return WKTElement(f"POINT({lon} {lat})", srid=4326)
 
 
 def enable_postgis(engine: Engine) -> None:

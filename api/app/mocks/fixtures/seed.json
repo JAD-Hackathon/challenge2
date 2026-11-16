@@ -1,0 +1,77 @@
+{
+  "seeded_at": "2026-11-10T09:00:00+00:00",
+  "images": [
+    {
+      "id": "mock_rossio",
+      "lat": 40.64278, "lon": -8.65466, "heading": 95.0, "fov": 90.0,
+      "source": "mapillary", "author": "mock_user", "license": "CC BY-SA 4.0",
+      "captured_at": "2025-06-12T10:15:00+00:00",
+      "elements": [
+        {"id": "a0000000-0000-4000-8000-000000000001", "type": "sign.speed_limit", "attributes": {"limit": 50},
+         "status": "auto", "confidence": 0.91, "lat": 40.64277, "lon": -8.65452, "bbox_xyxy": [610, 250, 680, 320]},
+        {"id": "a0000000-0000-4000-8000-000000000002", "type": "waste.recycling_island", "attributes": {},
+         "status": "auto", "confidence": 0.84, "lat": 40.64270, "lon": -8.65440, "bbox_xyxy": [180, 470, 400, 600]}
+      ]
+    },
+    {
+      "id": "mock_peixinho",
+      "lat": 40.64195, "lon": -8.64820, "heading": 270.0, "fov": 90.0,
+      "source": "mapillary", "author": "mock_user", "license": "CC BY-SA 4.0",
+      "captured_at": "2025-06-12T10:21:00+00:00",
+      "elements": [
+        {"id": "a0000000-0000-4000-8000-000000000003", "type": "sign.stop", "attributes": {},
+         "status": "auto", "confidence": 0.88, "lat": 40.64197, "lon": -8.64835, "bbox_xyxy": [700, 280, 770, 350]},
+        {"id": "a0000000-0000-4000-8000-000000000004", "type": "light.street_lamp", "attributes": {},
+         "status": "verified", "confidence": 0.79, "lat": 40.64203, "lon": -8.64838, "bbox_xyxy": [300, 120, 345, 520]}
+      ]
+    },
+    {
+      "id": "mock_republica",
+      "lat": 40.64060, "lon": -8.65350, "heading": 180.0, "fov": 90.0,
+      "source": "kartaview", "author": "mock_driver", "license": "CC BY-SA 4.0",
+      "captured_at": "2025-07-03T16:40:00+00:00",
+      "elements": [
+        {"id": "a0000000-0000-4000-8000-000000000005", "type": "sign.yield", "attributes": {},
+         "status": "auto", "confidence": 0.73, "lat": 40.64048, "lon": -8.65347, "bbox_xyxy": [540, 260, 620, 330]},
+        {"id": "a0000000-0000-4000-8000-000000000006", "type": "waste.underground", "attributes": {},
+         "status": "verified", "confidence": 0.81, "lat": 40.64046, "lon": -8.65356, "bbox_xyxy": [150, 520, 330, 610]}
+      ]
+    },
+    {
+      "id": "mock_forum",
+      "lat": 40.64110, "lon": -8.65150, "heading": 45.0, "fov": 90.0,
+      "source": "kartaview", "author": "mock_driver", "license": "CC BY-SA 4.0",
+      "captured_at": "2025-07-03T16:52:00+00:00",
+      "elements": [
+        {"id": "a0000000-0000-4000-8000-000000000007", "type": "sign.other", "attributes": {},
+         "status": "rejected", "confidence": 0.52, "lat": 40.64118, "lon": -8.65140, "bbox_xyxy": [480, 200, 560, 280]},
+        {"id": "a0000000-0000-4000-8000-000000000008", "type": "waste.general", "attributes": {},
+         "status": "corrected", "confidence": 0.66, "lat": 40.64117, "lon": -8.65136, "bbox_xyxy": [720, 450, 860, 580]}
+      ]
+    },
+    {
+      "id": "mock_universidade",
+      "lat": 40.63030, "lon": -8.65760, "heading": 0.0, "fov": 90.0,
+      "source": "mapillary", "author": "mock_user", "license": "CC BY-SA 4.0",
+      "captured_at": "2025-09-20T11:05:00+00:00",
+      "elements": [
+        {"id": "a0000000-0000-4000-8000-000000000009", "type": "sign.speed_limit", "attributes": {},
+         "status": "auto", "confidence": 0.69, "lat": 40.63042, "lon": -8.65756, "bbox_xyxy": [620, 230, 690, 300]},
+        {"id": "a0000000-0000-4000-8000-000000000010", "type": "light.street_pole", "attributes": {},
+         "status": "auto", "confidence": 0.77, "lat": 40.63044, "lon": -8.65766, "bbox_xyxy": [260, 100, 300, 540]}
+      ]
+    },
+    {
+      "id": "mock_estacao",
+      "lat": 40.64350, "lon": -8.64090, "heading": 300.0, "fov": 90.0,
+      "source": "mapillary", "author": "mock_user", "license": "CC BY-SA 4.0",
+      "captured_at": "2025-09-20T11:30:00+00:00",
+      "elements": [
+        {"id": "a0000000-0000-4000-8000-000000000011", "type": "sign.speed_limit", "attributes": {"limit": 30},
+         "status": "corrected", "confidence": 0.95, "lat": 40.64356, "lon": -8.64103, "bbox_xyxy": [430, 240, 500, 310]},
+        {"id": "a0000000-0000-4000-8000-000000000012", "type": "light.street_lamp", "attributes": {},
+         "status": "auto", "confidence": 0.86, "lat": 40.64358, "lon": -8.64098, "bbox_xyxy": [760, 110, 805, 500]}
+      ]
+    }
+  ]
+}

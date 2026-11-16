@@ -1,6 +1,12 @@
-"""Mirror of the ML service contract (ml/docs/data_contract.md). Keep in sync with ml/src/service/schemas.py."""
+"""Mirror of the ML service contract (ml/docs/data_contract.md). Keep in sync with ml/src/service/schemas.py.
 
-from typing import Literal
+IDs: image_id is chosen by the API (ML only uses it as a file name). observation_id and
+element_id are created by ML and must be UUIDs (contract rule); the API stores them as they are.
+"""
+
+import uuid
+from datetime import datetime
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -20,7 +26,7 @@ class CameraMeta(BaseModel):
 
 
 class Observation(BaseModel):
-    observation_id: str
+    observation_id: uuid.UUID
     type: str  # e.g. "sign.stop"
     score: float = Field(ge=0, le=1)
     bbox_xyxy: list[int] = Field(min_length=4, max_length=4)
@@ -28,6 +34,8 @@ class Observation(BaseModel):
     est_lat: float | None = None
     est_lon: float | None = None
     uncertainty_m: float | None = None
+    # Optional extra in the contract, e.g. {"limit": 50} for sign.speed_limit (phase 2)
+    attributes: dict[str, Any] | None = None
 
 
 class InferResponse(BaseModel):
@@ -37,14 +45,15 @@ class InferResponse(BaseModel):
 
 
 class MLElement(BaseModel):
-    element_id: str
+    element_id: uuid.UUID
     type: str
     lat: float
     lon: float
     confidence: float = Field(ge=0, le=1)
-    observation_ids: list[str]
-    best_observation_id: str
+    observation_ids: list[uuid.UUID]
+    best_observation_id: uuid.UUID
     status: Literal["auto", "verified", "corrected", "rejected"] = "auto"
+    attributes: dict[str, Any] | None = None  # optional extra, see Observation.attributes
 
 
 class DedupRequest(BaseModel):
@@ -55,5 +64,33 @@ class DedupRequest(BaseModel):
 
 class DedupResponse(BaseModel):
     elements: list[MLElement]
-    unassigned_observation_ids: list[str] = []
-    removed_element_ids: list[str] = []
+    unassigned_observation_ids: list[uuid.UUID] = []
+    removed_element_ids: list[uuid.UUID] = []
+
+
+# --- Proposed: POST /infer-video (not in ML yet, see "Video" in api/README.md) ---
+# Multipart: `video` file, `track` GPX file, `meta` = VideoInferMeta as JSON.
+
+
+class VideoInferMeta(BaseModel):
+    sequence_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,48}$")  # frame ids: <sequence_id>_<index>
+    spacing_m: float = 5.0  # one frame every N metres of travel
+    start_time: datetime | None = None  # UTC time of the first frame; null -> ML decides
+    time_offset_s: float = 0.0  # shift to line the video up with the GPS clock
+    heading_offset_deg: float = 0.0  # camera vs direction of travel: 0 front, 90 right
+    fov: float | None = None
+    camera_height_m: float | None = None
+
+
+class InferredFrame(BaseModel):
+    """One frame ML kept: where it was taken + the same fields as an /infer response."""
+
+    camera: CameraMeta  # image_id, lat, lon, heading, source "video", sequence_id, frame_index
+    captured_at: datetime | None = None
+    blurred_image_path: str  # relative to SHARED_DIR
+    observations: list[Observation]
+
+
+class InferVideoResponse(BaseModel):
+    sequence_id: str
+    frames: list[InferredFrame]
