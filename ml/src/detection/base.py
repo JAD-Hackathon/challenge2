@@ -10,8 +10,8 @@ from typing import ClassVar
 from PIL import Image
 from pydantic import BaseModel, ConfigDict, Field
 
-from ml.src.detection.utils.helpers import clamp_box
-from ml.src.geometry.utils.helpers import BBox
+from src.detection.utils.helpers import clamp_box
+from src.geometry.utils.helpers import BBox
 from src.config import DetectionConfig
 from src.taxonomy import Taxonomy
 

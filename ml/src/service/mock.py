@@ -16,7 +16,7 @@ from src.service.schemas import (
     Observation,
 )
 from src.taxonomy import get_taxonomy
-from ml.src.geometry.utils.helpers import (
+from src.geometry.utils.helpers import (
     distance_m,
     pixel_to_bearing,
     destination_point,
