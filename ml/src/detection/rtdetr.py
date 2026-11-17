@@ -29,7 +29,7 @@ class RTDETRDetector(Detector):
     def _load(self) -> None:
         """Load weights onto the device. Called once, lazily."""
         source = self._resolve_source()
-        self._device = resolve_device()
+        self._device = resolve_device(self.cfg.device)
         logger.info("Loading RT-DETR from %s on %s", source, self._device)
 
         self._processor = RTDetrImageProcessor.from_pretrained(
