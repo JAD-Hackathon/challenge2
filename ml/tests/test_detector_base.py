@@ -1,22 +1,9 @@
+import logging
 import pytest
 from PIL import Image
 
 from src.config import DetectionConfig
 from src.detection.base import Detection, Detector, register
-from src.taxonomy import Taxonomy
-
-TAX = Taxonomy.model_validate(
-    {
-        "classes": [
-            {"name": "sign.other", "label": "Outro sinal"},
-            {"name": "light.street_lamp", "label": "Candeeiro"},
-        ]
-    }
-)
-CFG = DetectionConfig(
-    conf=0.3,
-    class_map={"traffic_sign": "sign.other", "street_lamp": "light.street_lamp"},
-)
 
 
 @register
@@ -35,8 +22,8 @@ def _det(label, score, box):
     return Detection(label=label, score=score, bbox_xyxy=box)
 
 
-def test_maps_labels_filters_and_sorts():
-    d = _Dummy(CFG, TAX)
+def test_maps_labels_filters_and_sorts(cfg, tax):
+    d = _Dummy(cfg, tax)
     d.result = [
         _det("street_lamp", 0.5, (10, 10, 20, 40)),
         _det("traffic_sign", 0.9, (50, 50, 80, 80)),
@@ -50,8 +37,8 @@ def test_maps_labels_filters_and_sorts():
     ]
 
 
-def test_clamps_and_drops_degenerate_boxes():
-    d = _Dummy(CFG, TAX)
+def test_clamps_and_drops_degenerate_boxes(cfg, tax):
+    d = _Dummy(cfg, tax)
     d.result = [
         _det("traffic_sign", 0.9, (-10, -10, 50, 120)),
         _det("traffic_sign", 0.9, (200, 10, 210, 20)),  # fully outside -> zero width
@@ -60,7 +47,26 @@ def test_clamps_and_drops_degenerate_boxes():
     assert [x.bbox_xyxy for x in out] == [(0.0, 0.0, 50.0, 100.0)]
 
 
-def test_class_map_targets_must_exist():
-    bad = DetectionConfig(class_map={"x": "sign.stop"})
+def test_class_map_targets_must_exist(tax):
+    bad = DetectionConfig(class_map={"x": "sign.stop"}, model_id="test/model")
     with pytest.raises(ValueError):
-        _Dummy(bad, TAX)
+        _Dummy(bad, tax)
+
+
+def test_unmapped_label_warns_once(cfg, tax, caplog):
+    d = _Dummy(cfg, tax)
+    d.result = [
+        _det("person", 0.9, (0, 0, 30, 30)),
+        _det("person", 0.8, (5, 5, 40, 40)),
+    ]
+    with caplog.at_level(logging.WARNING, logger="src.detection.base"):
+        d.detect(Image.new("RGB", (100, 100)))
+        d.detect(Image.new("RGB", (100, 100)))
+    assert sum("person" in r.message for r in caplog.records) == 1
+
+
+def test_detect_batch_default_loops(cfg, tax):
+    d = _Dummy(cfg, tax)
+    d.result = [_det("traffic_sign", 0.9, (0, 0, 30, 30))]
+    out = d.detect_batch([Image.new("RGB", (100, 100))] * 3)
+    assert [len(x) for x in out] == [1, 1, 1]

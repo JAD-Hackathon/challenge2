@@ -21,6 +21,7 @@ detection:
   iou: 0.50
   imgsz: 960
   device: auto                          # auto | cpu | cuda:0
+  class_map: {traffic_sign: sign.other, street_lamp: light.street_lamp, trash_bin: waste.general}
 
 classification:
   enabled: false

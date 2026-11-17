@@ -60,11 +60,9 @@ class Detector(ABC):
         self.taxonomy = taxonomy
         self.weights_path = weights_path
 
-        self.class_map: dict[str, str] = {
-            **{str(idx): name for idx, name in taxonomy.names_by_id().items()},
-            **dict(cfg.class_map),
-        }
+        self.class_map: dict[str, str] = dict(cfg.class_map)
         self._names = set(taxonomy.names)
+        self._warned: set[str] = set()
 
         unknown = sorted(set(self.class_map.values()) - self._names)
         if unknown:
@@ -114,7 +112,12 @@ class Detector(ABC):
         for detection in raw:
             label = self.class_map.get(detection.label, detection.label)
             if label not in self._names:
-                logger.debug("dropping unmapped label %r", detection.label)
+                if detection.label not in self._warned:
+                    self._warned.add(detection.label)
+                    logger.warning(
+                        "dropping label %r: not in the taxonomy or detection.class_map",
+                        detection.label,
+                    )
                 continue
 
             if detection.score < self.cfg.conf:
