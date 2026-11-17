@@ -11,7 +11,7 @@ from typing import Literal, Any, Callable
 
 import requests
 from pydantic import BaseModel, ConfigDict, Field
-from src.geometry.helpers import distance_m
+from ml.src.geometry.utils.helpers import distance_m
 from src.config import get_settings
 
 paths_config = get_settings().paths

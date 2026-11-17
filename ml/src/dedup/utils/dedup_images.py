@@ -5,7 +5,7 @@ from pathlib import Path
 from PIL import Image
 
 from src.config import get_settings
-from src.geometry.helpers import distance_m
+from ml.src.geometry.utils.helpers import distance_m
 from src.io.common import (
     ImageRecord,
     read_manifest,

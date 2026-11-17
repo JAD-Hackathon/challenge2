@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import torch
 from PIL import Image
 from transformers import AutoModelForZeroShotObjectDetection, AutoProcessor
-from src.detection.helpers import xyxy_to_yolo
+from ml.src.detection.utils.helpers import xyxy_to_yolo
 from src.io.common import read_manifest
 from src.config import get_settings
 
