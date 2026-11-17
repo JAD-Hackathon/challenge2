@@ -6,12 +6,19 @@ geometry column work here without changes. Coordinates are always returned in WG
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, NamedTuple
 
 from sqlalchemy import RowMapping, text
 from sqlalchemy.orm import Session
 
-BBox = tuple[float, float, float, float]  # min_lon, min_lat, max_lon, max_lat
+
+class BBox(NamedTuple):
+    """WGS84 box. Field order = the `bbox` query parameter (lon first, like GeoJSON)."""
+
+    min_lon: float
+    min_lat: float
+    max_lon: float
+    max_lat: float
 
 
 @dataclass(frozen=True)
@@ -37,7 +44,9 @@ def list_spatial_tables(db: Session) -> list[SpatialTable]:
     return [SpatialTable(*r) for r in rows]
 
 
-def get_spatial_table(db: Session, table: str, schema: str = "public") -> SpatialTable | None:
+def get_spatial_table(
+    db: Session, table: str, schema: str = "public"
+) -> SpatialTable | None:
     row = db.execute(
         text(
             """
@@ -56,7 +65,9 @@ def _q(db: Session, ident: str) -> str:
     return db.get_bind().dialect.identifier_preparer.quote(ident)
 
 
-def _from_where(db: Session, t: SpatialTable, bbox: BBox | None) -> tuple[str, dict[str, Any]]:
+def _from_where(
+    db: Session, t: SpatialTable, bbox: BBox | None
+) -> tuple[str, dict[str, Any]]:
     # Identifiers come from geometry_columns (validated), and are quoted anyway
     geom = _q(db, t.geom_column)
     sql = f"FROM {_q(db, t.schema)}.{_q(db, t.table)} AS t"
@@ -66,7 +77,12 @@ def _from_where(db: Session, t: SpatialTable, bbox: BBox | None) -> tuple[str, d
             f" WHERE ST_Intersects(t.{geom},"
             f" ST_Transform(ST_MakeEnvelope(:minx, :miny, :maxx, :maxy, 4326), ST_SRID(t.{geom})))"
         )
-        params = dict(zip(("minx", "miny", "maxx", "maxy"), bbox, strict=True))
+        params = {
+            "minx": bbox.min_lon,
+            "miny": bbox.min_lat,
+            "maxx": bbox.max_lon,
+            "maxy": bbox.max_lat,
+        }
     return sql, params
 
 

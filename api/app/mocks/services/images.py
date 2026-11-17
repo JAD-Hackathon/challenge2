@@ -44,20 +44,30 @@ def ingest_batch(uploads: list[UploadedImage]) -> BatchResponse:
             )
             continue
         image_id = meta.image_id or new_image_id()
-        base = {"index": upload.index, "filename": upload.filename, "image_id": image_id}
+        base = {
+            "index": upload.index,
+            "filename": upload.filename,
+            "image_id": image_id,
+        }
         if store.has_image(image_id):
             results.append(
                 ImageResult(
-                    **base, status=ImageStatus.DUPLICATE, error="image_id already processed"
+                    **base,
+                    status=ImageStatus.DUPLICATE,
+                    error="image_id already processed",
                 )
             )
             continue
 
         camera = meta.camera(image_id)
         try:
-            inferred = ml_client.infer(upload.content, camera, upload.content_type or "image/jpeg")
+            inferred = ml_client.infer(
+                upload.content, camera, upload.content_type or "image/jpeg"
+            )
         except MLInputError as e:
-            results.append(ImageResult(**base, status=ImageStatus.FAILED, error=e.detail))
+            results.append(
+                ImageResult(**base, status=ImageStatus.FAILED, error=e.detail)
+            )
             continue
 
         image = collected.add(
@@ -82,7 +92,9 @@ def ingest_video(video: UploadedVideo) -> VideoResponse:
         )  # fmt: skip
         base = {"index": index, "filename": filename, "image_id": image.id}
         results.append(_processed(base, image, frame.observations))
-    return VideoResponse(images=results, elements=collected.save(), sequence_id=result.sequence_id)
+    return VideoResponse(
+        images=results, elements=collected.save(), sequence_id=result.sequence_id
+    )
 
 
 def get_image(image_id: str) -> ImageRead:
@@ -132,26 +144,34 @@ class _Collected:
         found = []
         if self.detections:
             request = ml.DedupRequest(
-                observations=[d for d, _ in self.detections.values()], images=self.cameras
+                observations=[d for d, _ in self.detections.values()],
+                images=self.cameras,
             )
             found = ml_client.dedup(request).elements
         pairs = [(f, _element(f, self.detections)) for f in found]
-        element_of = {o: e.id for f, e in pairs if e is not None for o in f.observation_ids}
+        element_of = {
+            o: e.id for f, e in pairs if e is not None for o in f.observation_ids
+        }
 
         with store.lock:
             for image in self.images:
                 store.save_image(image)
             for detection, image in self.detections.values():
                 store.add_observation(
-                    image.id, _observation(detection, element_of.get(detection.observation_id))
+                    image.id,
+                    _observation(detection, element_of.get(detection.observation_id)),
                 )
             for f, element in pairs:
                 if element is not None:
-                    store.save_element(element, best_observation_id=f.best_observation_id)
+                    store.save_element(
+                        element, best_observation_id=f.best_observation_id
+                    )
         return [e for _, e in pairs if e is not None]
 
 
-def _processed(base: dict, image: ImageRead, observations: list[ml.Observation]) -> ImageResult:
+def _processed(
+    base: dict, image: ImageRead, observations: list[ml.Observation]
+) -> ImageResult:
     return ImageResult(
         **base,
         status=ImageStatus.PROCESSED,
@@ -169,7 +189,9 @@ def _element(
         return new_element(
             element_id=found.element_id,
             class_name=found.type,
-            attributes=found.attributes if found.attributes is not None else best.attributes or {},
+            attributes=found.attributes
+            if found.attributes is not None
+            else best.attributes or {},
             confidence=found.confidence,
             lat=found.lat,
             lon=found.lon,
@@ -182,7 +204,9 @@ def _element(
         return None
 
 
-def _observation(detection: ml.Observation, element_id: uuid.UUID | None) -> ObservationRead:
+def _observation(
+    detection: ml.Observation, element_id: uuid.UUID | None
+) -> ObservationRead:
     return ObservationRead(
         id=detection.observation_id,
         element_id=element_id,

@@ -29,8 +29,13 @@ def test_fix_type(client):
     )  # fmt: skip
     assert to_yield["attributes"] == {}  # {"limit": 50} described the old type
 
-    to_waste = patch(client, SPEED_LIMIT_50, {"category": "waste", "type": "general"}).json()
-    assert (to_waste["category"], to_waste["name"]) == ("waste", "Contentor indiferenciado")
+    to_waste = patch(
+        client, SPEED_LIMIT_50, {"category": "waste", "type": "general"}
+    ).json()
+    assert (to_waste["category"], to_waste["name"]) == (
+        "waste",
+        "Contentor indiferenciado",
+    )
 
     wrong = patch(client, VERIFIED_LAMP, {"type": "stop"})  # light.stop doesn't exist
     assert wrong.status_code == 422
@@ -38,15 +43,22 @@ def test_fix_type(client):
 
 
 def test_fix_position(client):
-    moved = patch(client, SPEED_LIMIT_50, {"latitude": 40.6428, "longitude": -8.6546}).json()
+    moved = patch(
+        client, SPEED_LIMIT_50, {"latitude": 40.6428, "longitude": -8.6546}
+    ).json()
     assert (moved["latitude"], moved["longitude"]) == (40.6428, -8.6546)
-    assert moved["type"] == "speed_limit" and moved["attributes"] == {"limit": 50}  # untouched
+    assert moved["type"] == "speed_limit" and moved["attributes"] == {
+        "limit": 50
+    }  # untouched
 
 
 def test_patch_validation(client):
     assert patch(client, SPEED_LIMIT_50, {}).status_code == 422  # nothing to change
     assert patch(client, SPEED_LIMIT_50, {"latitude": 40.64}).status_code == 422
-    assert patch(client, SPEED_LIMIT_50, {"latitude": 95, "longitude": 0}).status_code == 422
+    assert (
+        patch(client, SPEED_LIMIT_50, {"latitude": 95, "longitude": 0}).status_code
+        == 422
+    )
     assert patch(client, UNKNOWN, {"type": "stop"}).status_code == 404
 
 

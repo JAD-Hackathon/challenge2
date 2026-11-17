@@ -35,4 +35,8 @@ def class_name(category: ElementCategory, type_: str | None) -> str:
 
 def label(name: str) -> str:
     """Human name for a class, e.g. 'Limite de velocidade'."""
-    return LABELS.get(name) or name.partition(".")[2].replace("_", " ").capitalize() or name
+    return (
+        LABELS.get(name)
+        or name.partition(".")[2].replace("_", " ").capitalize()
+        or name
+    )

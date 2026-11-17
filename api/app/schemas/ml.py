@@ -53,7 +53,9 @@ class MLElement(BaseModel):
     observation_ids: list[uuid.UUID]
     best_observation_id: uuid.UUID
     status: Literal["auto", "verified", "corrected", "rejected"] = "auto"
-    attributes: dict[str, Any] | None = None  # optional extra, see Observation.attributes
+    attributes: dict[str, Any] | None = (
+        None  # optional extra, see Observation.attributes
+    )
 
 
 class DedupRequest(BaseModel):
@@ -73,9 +75,13 @@ class DedupResponse(BaseModel):
 
 
 class VideoInferMeta(BaseModel):
-    sequence_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,48}$")  # frame ids: <sequence_id>_<index>
+    sequence_id: str = Field(
+        pattern=r"^[A-Za-z0-9_-]{1,48}$"
+    )  # frame ids: <sequence_id>_<index>
     spacing_m: float = 5.0  # one frame every N metres of travel
-    start_time: datetime | None = None  # UTC time of the first frame; null -> ML decides
+    start_time: datetime | None = (
+        None  # UTC time of the first frame; null -> ML decides
+    )
     time_offset_s: float = 0.0  # shift to line the video up with the GPS clock
     heading_offset_deg: float = 0.0  # camera vs direction of travel: 0 front, 90 right
     fov: float | None = None

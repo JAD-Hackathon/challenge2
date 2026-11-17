@@ -62,20 +62,26 @@ class MockStore:
     def __init__(self) -> None:
         self.lock = threading.RLock()  # sync endpoints run in a thread pool
         self._elements: dict[uuid.UUID, ElementRead] = {}
-        self._best_observation: dict[uuid.UUID, uuid.UUID] = {}  # element id -> observation id
+        self._best_observation: dict[
+            uuid.UUID, uuid.UUID
+        ] = {}  # element id -> observation id
         self._images: dict[str, ImageRead] = {}
 
     # --- elements ---
 
     def list_elements(
-        self, category: ElementCategory | None = None, status: ElementStatus | None = None
+        self,
+        category: ElementCategory | None = None,
+        status: ElementStatus | None = None,
     ) -> list[ElementRead]:
         """status=None -> every element except rejected ones (like the real API)."""
         return [
             e
             for e in self.all_elements()
             if (category is None or e.category is category)
-            and (e.status is status if status else e.status is not ElementStatus.REJECTED)
+            and (
+                e.status is status if status else e.status is not ElementStatus.REJECTED
+            )
         ]
 
     def all_elements(self) -> list[ElementRead]:

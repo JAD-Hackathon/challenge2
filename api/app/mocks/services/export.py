@@ -27,7 +27,9 @@ def list_layers() -> list[dict[str, Any]]:
     return [LAYER]
 
 
-def export_geojson(table: str, schema: str = "public", bbox: str | None = None) -> tuple[str, str]:
+def export_geojson(
+    table: str, schema: str = "public", bbox: str | None = None
+) -> tuple[str, str]:
     features = [
         {
             "type": "Feature",
@@ -39,7 +41,9 @@ def export_geojson(table: str, schema: str = "public", bbox: str | None = None) 
         }
         for e in _elements(table, schema, bbox)
     ]
-    body = json.dumps({"type": "FeatureCollection", "features": features}, ensure_ascii=False)
+    body = json.dumps(
+        {"type": "FeatureCollection", "features": features}, ensure_ascii=False
+    )
     return export_filename(table, "geojson"), body
 
 
@@ -50,7 +54,9 @@ def export_csv(
         {**_properties(e), "latitude": e.latitude, "longitude": e.longitude}
         for e in _elements(table, schema, bbox)
     ]
-    return export_filename(table, "csv"), write_csv([*COLUMNS, "latitude", "longitude"], rows)
+    return export_filename(table, "csv"), write_csv(
+        [*COLUMNS, "latitude", "longitude"], rows
+    )
 
 
 def _elements(table: str, schema: str, bbox: str | None) -> list[ElementRead]:
@@ -60,7 +66,11 @@ def _elements(table: str, schema: str, bbox: str | None) -> list[ElementRead]:
     return [
         e
         for e in store.all_elements()  # the real export includes every status too
-        if box is None or (box[0] <= e.longitude <= box[2] and box[1] <= e.latitude <= box[3])
+        if box is None
+        or (
+            box.min_lon <= e.longitude <= box.max_lon
+            and box.min_lat <= e.latitude <= box.max_lat
+        )
     ]
 
 

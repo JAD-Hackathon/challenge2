@@ -19,14 +19,18 @@ class Observation(Base):
     __tablename__ = "observations"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    image_id: Mapped[str] = mapped_column(ForeignKey("images.id", ondelete="CASCADE"), index=True)
+    image_id: Mapped[str] = mapped_column(
+        ForeignKey("images.id", ondelete="CASCADE"), index=True
+    )
     element_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("elements.id", ondelete="SET NULL"), index=True
     )
 
     type: Mapped[str] = mapped_column(String(64))  # ML class, e.g. "sign.speed_limit"
     score: Mapped[float]
-    bbox_xyxy: Mapped[list[int]] = mapped_column(ARRAY(Integer))  # px in the blurred image
+    bbox_xyxy: Mapped[list[int]] = mapped_column(
+        ARRAY(Integer)
+    )  # px in the blurred image
     attributes: Mapped[dict[str, Any]] = mapped_column(
         JSONB, default=dict, server_default=text("'{}'::jsonb")
     )
@@ -38,7 +42,9 @@ class Observation(Base):
     longitude: Mapped[float | None] = column_property(func.ST_X(geom))
     uncertainty_m: Mapped[float | None]
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     image: Mapped["Image"] = relationship(back_populates="observations")
     element: Mapped["Element | None"] = relationship(back_populates="observations")

@@ -28,7 +28,8 @@ def to_image_read(image: Image) -> ImageRead:
         captured_at=image.captured_at,
         created_at=image.created_at,
         observations=[
-            _observation_read(o) for o in sorted(image.observations, key=lambda o: -o.score)
+            _observation_read(o)
+            for o in sorted(image.observations, key=lambda o: -o.score)
         ],
     )
 

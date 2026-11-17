@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 import httpx
 import pytest
 from app.core import taxonomy
+from app.database.postgis import LatLon, point
 from app.models.element import Element, ElementCategory, ElementStatus
 from app.models.image import Image
 from app.models.observation import Observation
@@ -81,7 +82,9 @@ def stub_queries(monkeypatch):
             e.status = e.status or ElementStatus.AUTO
         return found
 
-    monkeypatch.setattr(image_repo, "image_exists", lambda db, image_id: image_id == "seen")
+    monkeypatch.setattr(
+        image_repo, "image_exists", lambda db, image_id: image_id == "seen"
+    )
     monkeypatch.setattr(element_repo, "list_near", lambda db, points, margin_m: [])
     monkeypatch.setattr(element_repo, "get_elements", get_elements)
 
@@ -102,14 +105,21 @@ def test_ingest_batch(stub_queries, ml_stub, make_jpeg):
 
     result = ingest.ingest_batch(
         db,
-        [upload(0, jpeg), upload(1, b"bad"), upload(2, jpeg, image_id="seen"), upload(3, jpeg)],
+        [
+            upload(0, jpeg),
+            upload(1, b"bad"),
+            upload(2, jpeg, image_id="seen"),
+            upload(3, jpeg),
+        ],
     )
 
     assert [r.status for r in result.images] == [
         ImageStatus.PROCESSED, ImageStatus.FAILED, ImageStatus.DUPLICATE, ImageStatus.PROCESSED,
     ]  # fmt: skip
     assert result.images[1].error == "ML unsupported_image: could not read the image"
-    assert "seen" not in [m.image_id for m in ml_stub.inferred]  # duplicates never reach ML
+    assert "seen" not in [
+        m.image_id for m in ml_stub.inferred
+    ]  # duplicates never reach ML
     assert db.commits == 1
     assert len(db.of(Image)) == 2
 
@@ -127,14 +137,20 @@ def test_ingest_batch(stub_queries, ml_stub, make_jpeg):
         {"limit": 50},
     )
     assert sign.best_observation_id == sent[0].observation_id
-    assert {o.element_id for o in observations if o.type == "sign.speed_limit"} == {sign.id}
+    assert {o.element_id for o in observations if o.type == "sign.speed_limit"} == {
+        sign.id
+    }
     assert {e.id for e in result.elements} == {e.id for e in db.of(Element)}
 
 
-def test_ingest_batch_ml_down_saves_nothing(stub_queries, ml_stub, make_jpeg, shared_dir):
+def test_ingest_batch_ml_down_saves_nothing(
+    stub_queries, ml_stub, make_jpeg, shared_dir
+):
     db = FakeSession()
     with pytest.raises(MLServiceError):
-        ingest.ingest_batch(db, [upload(0, make_jpeg(), image_id="first"), upload(1, b"ML down")])
+        ingest.ingest_batch(
+            db, [upload(0, make_jpeg(), image_id="first"), upload(1, b"ML down")]
+        )
     assert db.rolled_back and db.commits == 0
     assert not (shared_dir / "images" / "first.jpg").exists()  # blurred copy cleaned up
 
@@ -159,7 +175,9 @@ def test_ingest_video(stub_queries, ml_stub, shared_dir):
     assert {e.type for e in result.elements} == {"speed_limit", "street_lamp"}
 
 
-def test_ingest_video_ml_down_saves_nothing(stub_queries, ml_stub, monkeypatch, shared_dir):
+def test_ingest_video_ml_down_saves_nothing(
+    stub_queries, ml_stub, monkeypatch, shared_dir
+):
     import io
 
     def dedup_down(request):
@@ -167,12 +185,16 @@ def test_ingest_video_ml_down_saves_nothing(stub_queries, ml_stub, monkeypatch, 
 
     monkeypatch.setattr(ml_client, "dedup", dedup_down)
     db = FakeSession()
-    video = UploadedVideo(io.BytesIO(b"mp4"), "v.mp4", "video/mp4", b"<gpx/>", VideoMeta())
+    video = UploadedVideo(
+        io.BytesIO(b"mp4"), "v.mp4", "video/mp4", b"<gpx/>", VideoMeta()
+    )
     with pytest.raises(MLServiceError):
         ingest.ingest_video(db, video)
     assert db.rolled_back and db.commits == 0
     sequence_id = ml_stub.videos[-1][2].sequence_id
-    assert not list((shared_dir / "images").glob(f"{sequence_id}_*"))  # ML's frames cleaned up
+    assert not list(
+        (shared_dir / "images").glob(f"{sequence_id}_*")
+    )  # ML's frames cleaned up
 
 
 # --- dedup ---
@@ -185,7 +207,9 @@ def test_dedup_never_changes_human_decisions(monkeypatch):
         element(ElementStatus.REJECTED),
     )
     db = FakeSession(verified, merged_away, rejected)
-    monkeypatch.setattr(element_repo, "list_near", lambda *a: [verified, merged_away, rejected])
+    monkeypatch.setattr(
+        element_repo, "list_near", lambda *a: [verified, merged_away, rejected]
+    )
 
     pending = dedup.PendingObservations()
     camera = ml.CameraMeta(image_id="img", lat=40.64, lon=-8.65, heading=0)
@@ -249,7 +273,9 @@ def test_flag_false_positive(monkeypatch):
     flagged = element_service.flag_false_positive(db, target.id)
     assert flagged.status is ElementStatus.REJECTED and db.commits == 1
 
-    element_service.flag_false_positive(db, target.id)  # already rejected: nothing to save
+    element_service.flag_false_positive(
+        db, target.id
+    )  # already rejected: nothing to save
     assert db.commits == 1
 
 
@@ -262,7 +288,9 @@ def test_update_element(monkeypatch):
     db = FakeSession(target)
 
     element_service.update_element(
-        db, target.id, ElementUpdate(attributes={"limit": 30}, latitude=40.7, longitude=-8.6)
+        db,
+        target.id,
+        ElementUpdate(attributes={"limit": 30}, latitude=40.7, longitude=-8.6),
     )
     assert (target.type, target.attributes, target.status) == (
         "speed_limit", {"limit": 30}, ElementStatus.CORRECTED,
@@ -278,12 +306,16 @@ def test_verify_element(monkeypatch):
     monkeypatch.setattr(element_repo, "get_element", lambda db, element_id: target)
     db = FakeSession(target)
 
-    assert element_service.verify_element(db, target.id).status is ElementStatus.VERIFIED
+    assert (
+        element_service.verify_element(db, target.id).status is ElementStatus.VERIFIED
+    )
     element_service.verify_element(db, target.id)  # already verified: nothing to save
     assert db.commits == 1
 
     target.status = ElementStatus.CORRECTED
-    assert element_service.verify_element(db, target.id).status is ElementStatus.CORRECTED
+    assert (
+        element_service.verify_element(db, target.id).status is ElementStatus.CORRECTED
+    )
 
 
 # --- ML client ---
@@ -292,7 +324,9 @@ def test_verify_element(monkeypatch):
 def test_ml_errors_are_split_by_status():
     with pytest.raises(MLInputError, match="invalid_meta: heading"):
         ml_client._raise_for_error(
-            httpx.Response(400, json={"error": {"code": "invalid_meta", "message": "heading"}})
+            httpx.Response(
+                400, json={"error": {"code": "invalid_meta", "message": "heading"}}
+            )
         )
     with pytest.raises(MLServiceError) as error:
         ml_client._raise_for_error(httpx.Response(500, text="boom"))
@@ -303,7 +337,9 @@ def test_ml_errors_are_split_by_status():
         )
     with pytest.raises(MLNotImplementedError, match="not_implemented"):
         ml_client._raise_for_error(
-            httpx.Response(501, json={"error": {"code": "not_implemented", "message": "x"}})
+            httpx.Response(
+                501, json={"error": {"code": "not_implemented", "message": "x"}}
+            )
         )
 
 
@@ -321,3 +357,32 @@ def test_taxonomy():
     with pytest.raises(ValueError):
         taxonomy.split_class("bench.wooden")
     assert taxonomy.label("waste.new_kind") == "New kind"
+
+
+# --- coordinates ---
+
+
+def test_point_takes_named_coordinates():
+    assert point(lat=40.64, lon=-8.65).data == "POINT(-8.65 40.64)"  # WKT is lon, lat
+    with pytest.raises(TypeError):
+        point(40.64, -8.65)  # type: ignore[misc]  # positional: could be swapped
+
+
+def test_dedup_search_points():
+    """Cameras + positioned detections, as named LatLon (no lat/lon guessing)."""
+    camera = ml.CameraMeta(image_id="cam", lat=40.64, lon=-8.65, heading=0)
+    pending = dedup.PendingObservations()
+    for est_lat, est_lon in [(40.6401, -8.6501), (None, None)]:
+        detection = ml.Observation(
+            observation_id=uuid.uuid4(),
+            type="sign.stop",
+            score=0.9,
+            bbox_xyxy=[1, 1, 2, 2],
+            est_lat=est_lat,
+            est_lon=est_lon,
+        )
+        pending.add(FakeSession(), detection, camera)
+    assert pending.points() == [
+        LatLon(lat=40.64, lon=-8.65),
+        LatLon(lat=40.6401, lon=-8.6501),
+    ]

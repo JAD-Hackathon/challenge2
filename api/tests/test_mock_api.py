@@ -73,7 +73,10 @@ def test_batch_upload(client, shared_dir, make_jpeg, ml_stub):
     response = upload(
         client,
         [("a.jpg", make_jpeg()), ("b.jpg", make_jpeg(colour="olive"))],
-        [{**META, "author": "ana", "license": "CC BY-SA 4.0"}, {**META, "image_id": "web_2"}],
+        [
+            {**META, "author": "ana", "license": "CC BY-SA 4.0"},
+            {**META, "image_id": "web_2"},
+        ],
     )
     assert response.status_code == 200
     body = response.json()
@@ -82,7 +85,9 @@ def test_batch_upload(client, shared_dir, make_jpeg, ml_stub):
     assert [r["filename"] for r in body["images"]] == ["a.jpg", "b.jpg"]
     assert body["images"][1]["image_id"] == "web_2"
     assert body["images"][0]["image_id"].startswith("up_")
-    assert [m.image_id for m in ml_stub.inferred] == [r["image_id"] for r in body["images"]]
+    assert [m.image_id for m in ml_stub.inferred] == [
+        r["image_id"] for r in body["images"]
+    ]
     assert len(ml_stub.dedups) == 1  # one /dedup for the whole batch
 
     # ML wrote the blurred copies to the shared folder; the API serves them
@@ -101,14 +106,20 @@ def test_batch_upload(client, shared_dir, make_jpeg, ml_stub):
     assert client.get(f"{ELEMENTS}/{sign['id']}").json() == sign
     image = client.get(f"{IMAGES}/{sign['image_id']}").json()
     assert sign["id"] in {o["element_id"] for o in image["observations"]}
-    assert str(first_obs) in {o["id"] for o in image["observations"]}  # ML's observation ids
+    assert str(first_obs) in {
+        o["id"] for o in image["observations"]
+    }  # ML's observation ids
 
 
 def test_batch_upload_reports_each_file(client, make_jpeg, ml_stub):
     upload(client, [("first.jpg", make_jpeg())], [{**META, "image_id": "dup"}])
     response = upload(
         client,
-        [("ok.jpg", make_jpeg()), ("broken.jpg", b"not an image"), ("again.jpg", make_jpeg())],
+        [
+            ("ok.jpg", make_jpeg()),
+            ("broken.jpg", b"not an image"),
+            ("again.jpg", make_jpeg()),
+        ],
         [META, META, {**META, "image_id": "dup"}],
     )
     assert response.status_code == 200
@@ -166,7 +177,9 @@ def test_flag_false_positive(client):
 
 
 def test_flag_unknown_element_is_404(client):
-    response = client.post(f"{ELEMENTS}/00000000-0000-4000-8000-000000000000/false-positive")
+    response = client.post(
+        f"{ELEMENTS}/00000000-0000-4000-8000-000000000000/false-positive"
+    )
     assert response.status_code == 404
 
 
@@ -178,7 +191,9 @@ def test_export_geojson_and_csv(client):
 
     geojson = client.get("/api/v1/export/elements.geojson").json()
     assert len(geojson["features"]) == 12  # every status, like the real export
-    feature = next(f for f in geojson["features"] if f["properties"]["id"] == SPEED_LIMIT_50)
+    feature = next(
+        f for f in geojson["features"] if f["properties"]["id"] == SPEED_LIMIT_50
+    )
     assert feature["properties"]["attributes"] == {"limit": 50}
     assert feature["properties"]["best_observation_id"]
 
@@ -187,8 +202,25 @@ def test_export_geojson_and_csv(client):
     assert len(box.json()["features"]) == 2
 
     text = client.get("/api/v1/export/elements.csv").text.lstrip("﻿")
-    row = next(r for r in csv.DictReader(io.StringIO(text)) if r["id"] == SPEED_LIMIT_50)
+    row = next(
+        r for r in csv.DictReader(io.StringIO(text)) if r["id"] == SPEED_LIMIT_50
+    )
     assert json.loads(row["attributes"]) == {"limit": 50}  # JSON, not a Python repr
     assert float(row["latitude"]) == 40.64277
 
     assert client.get("/api/v1/export/nope.geojson").status_code == 404
+
+
+def test_export_bbox_validation(client):
+    url = "/api/v1/export/elements.geojson"
+    for bad in [
+        "-8.66,40.62,-8.63",  # 3 values
+        "a,b,c,d",  # not numbers
+        "-8.63,40.62,-8.66,40.65",  # min_lon > max_lon
+        "-8.66,40.62,-8.63,95",  # latitude out of range
+        "-200,40.62,-8.63,40.65",  # longitude out of range
+        "-8.66,nan,-8.63,40.65",
+    ]:
+        response = client.get(url, params={"bbox": bad})
+        assert response.status_code == 422, bad
+        assert "longitude first" in response.json()["detail"]

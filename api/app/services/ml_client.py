@@ -3,8 +3,6 @@
 from pathlib import Path
 
 import httpx
-from pydantic import BaseModel, ValidationError
-
 from app.core.config import settings
 from app.core.exceptions import AppError
 from app.schemas.ml import (
@@ -16,6 +14,7 @@ from app.schemas.ml import (
 )
 from app.schemas.video import UploadedVideo
 from app.services import media
+from pydantic import BaseModel, ValidationError
 
 
 class MLServiceError(AppError):
@@ -69,10 +68,14 @@ def _parse[M: BaseModel](model: type[M], response: httpx.Response) -> M:
     try:
         return model.model_validate_json(response.content)
     except ValidationError as e:  # e.g. an id that isn't a UUID
-        raise MLServiceError(f"ML response breaks the contract: {e.errors()[0]['msg']}") from e
+        raise MLServiceError(
+            f"ML response breaks the contract: {e.errors()[0]['msg']}"
+        ) from e
 
 
-def infer(image: bytes, meta: CameraMeta, content_type: str = "image/jpeg") -> InferResponse:
+def infer(
+    image: bytes, meta: CameraMeta, content_type: str = "image/jpeg"
+) -> InferResponse:
     response = _post(
         "/infer",
         files={"image": (f"{meta.image_id}.jpg", image, content_type)},

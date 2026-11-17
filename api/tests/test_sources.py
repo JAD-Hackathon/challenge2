@@ -35,13 +35,17 @@ KARTAVIEW = {  # KartaView API v2 photo
 
 
 def upload(client, metas: list[dict], make_jpeg):
-    files = [("images", (f"{i}.jpg", make_jpeg(), "image/jpeg")) for i in range(len(metas))]
+    files = [
+        ("images", (f"{i}.jpg", make_jpeg(), "image/jpeg")) for i in range(len(metas))
+    ]
     return client.post(IMAGES, files=files, data={"metas": json.dumps(metas)})
 
 
 def test_mapillary_and_kartaview_records(client, make_jpeg, ml_stub):
     response = upload(
-        client, [{"mapillary": MAPILLARY}, {"kartaview": KARTAVIEW, "author": "kv_user"}], make_jpeg
+        client,
+        [{"mapillary": MAPILLARY}, {"kartaview": KARTAVIEW, "author": "kv_user"}],
+        make_jpeg,
     )
     assert response.status_code == 200
     body = response.json()
@@ -49,7 +53,12 @@ def test_mapillary_and_kartaview_records(client, make_jpeg, ml_stub):
     assert [r["status"] for r in body["images"]] == ["processed", "processed"]
 
     mly, kv = ml_stub.inferred  # what ML got, worked out from the records
-    assert (mly.lat, mly.lon, mly.heading, mly.source) == (40.6412, -8.6538, 92.5, "mapillary")
+    assert (mly.lat, mly.lon, mly.heading, mly.source) == (
+        40.6412,
+        -8.6538,
+        92.5,
+        "mapillary",
+    )
     assert mly.fov == pytest.approx(math.degrees(2 * math.atan(0.5 / 0.8)))
     assert (mly.sequence_id, mly.frame_index) == ("seqA", 0)
     assert (kv.lat, kv.heading, kv.fov, kv.sequence_id, kv.frame_index) == (
@@ -86,7 +95,9 @@ def test_unusable_records_fail_alone(client, make_jpeg, ml_stub):
     assert "360° panorama" in results[0]["error"]
     assert results[1]["error"].startswith("kartaview image without position")
     assert results[2]["error"] == "mapillary record: missing 'id'"
-    assert [m.image_id for m in ml_stub.inferred] == ["mly_1234"]  # only the good one reached ML
+    assert [m.image_id for m in ml_stub.inferred] == [
+        "mly_1234"
+    ]  # only the good one reached ML
 
 
 def test_same_mapillary_image_twice(client, make_jpeg, ml_stub):
@@ -116,13 +127,24 @@ def test_mapillary_fallbacks():
         {"id": "5", "geometry": {"coordinates": [-8.65, 40.64]}, "compass_angle": 360.0}
     )
     assert meta is not None
-    assert (meta.heading, meta.fov, meta.author, meta.captured_at) == (0.0, None, None, None)
-    assert street_view.from_mapillary({"id": "6", "compass_angle": 10}) is None  # no position
+    assert (meta.heading, meta.fov, meta.author, meta.captured_at) == (
+        0.0,
+        None,
+        None,
+        None,
+    )
+    assert (
+        street_view.from_mapillary({"id": "6", "compass_angle": 10}) is None
+    )  # no position
 
 
 def test_kartaview_fallbacks():
     assert street_view.from_kartaview({**KARTAVIEW, "projection": "SPHERE"}) is None
-    meta = street_view.from_kartaview({**KARTAVIEW, "user": {"username": "u"}, "shotDate": None})
+    meta = street_view.from_kartaview(
+        {**KARTAVIEW, "user": {"username": "u"}, "shotDate": None}
+    )
     assert meta is not None and (meta.author, meta.captured_at) == ("u", None)
     dated = street_view.from_kartaview(KARTAVIEW)
-    assert dated is not None and dated.captured_at == datetime(2019, 7, 9, 9, 11, 43, tzinfo=UTC)
+    assert dated is not None and dated.captured_at == datetime(
+        2019, 7, 9, 9, 11, 43, tzinfo=UTC
+    )

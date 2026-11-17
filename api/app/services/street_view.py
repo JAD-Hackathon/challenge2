@@ -85,7 +85,9 @@ def from_mapillary(image: Mapping[str, Any]) -> ImageMeta | None:
         frame_index=None,  # set by assign_frame_indexes()
         author=_username(image.get("creator")),
         license=LICENSE,
-        captured_at=datetime.fromtimestamp(captured_ms / 1000, UTC) if captured_ms else None,
+        captured_at=datetime.fromtimestamp(captured_ms / 1000, UTC)
+        if captured_ms
+        else None,
     )
 
 

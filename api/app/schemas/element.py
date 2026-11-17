@@ -26,13 +26,20 @@ class ElementRead(BaseModel):
     confidence: float
     latitude: float
     longitude: float
-    image_id: str | None = Field(None, description="Image with the best view of the element")
-    image_url: str | None = Field(None, description="Blurred image (faces and plates hidden)")
+    image_id: str | None = Field(
+        None, description="Image with the best view of the element"
+    )
+    image_url: str | None = Field(
+        None, description="Blurred image (faces and plates hidden)"
+    )
     bbox_xyxy: list[int] | None = Field(
-        None, description="[x1, y1, x2, y2] px of the element in image_url: crop it to show it"
+        None,
+        description="[x1, y1, x2, y2] px of the element in image_url: crop it to show it",
     )
     attribution: str | None = Field(None, examples=["© jsmith, CC BY-SA 4.0"])
-    observation_count: int = Field(0, description="Detections (views) merged into this element")
+    observation_count: int = Field(
+        0, description="Detections (views) merged into this element"
+    )
     created_at: datetime
     updated_at: datetime
 

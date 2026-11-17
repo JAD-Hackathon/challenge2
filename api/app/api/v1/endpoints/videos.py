@@ -8,7 +8,9 @@ router = APIRouter(prefix="/videos", tags=["videos"])
 
 
 @router.post("", response_model=VideoResponse)
-def upload_video(db: SessionDep, video: VideoForm, track: TrackForm, meta: VideoMetaForm = "{}"):
+def upload_video(
+    db: SessionDep, video: VideoForm, track: TrackForm, meta: VideoMetaForm = "{}"
+):
     """Upload a street video (up to MAX_VIDEO_MB) plus the GPS track (GPX) recorded with it.
 
     The ML service picks one frame every `spacing_m` metres, places it with the GPS track, blurs

@@ -3,6 +3,9 @@
 FastAPI + PostGIS. Receives images and videos from the web, sends them to the ML service
 (see `ml/docs/data_contract.md`), stores the street furniture it finds and serves it back.
 
+Visual guide with diagrams (upload flow, dedup, statuses, every function): open
+[`docs/api-guide.html`](docs/api-guide.html) in a browser.
+
 ## Run
 
 ```bash
@@ -44,7 +47,7 @@ Everything mock-only is in [`app/mocks/`](app/mocks/__init__.py). It mirrors the
 | POST | `/images` | Upload a **batch** of images (multipart) |
 | POST | `/videos` | Upload a video + its GPS track (multipart) |
 | GET  | `/images/{image_id}` | Image + all its detections (boxes) |
-| GET  | `/export/layers`, `/export/{table}.geojson`, `/export/{table}.csv` | Export, `?bbox=` filter |
+| GET  | `/export/layers`, `/export/{table}.geojson`, `/export/{table}.csv` | Export, `?bbox=min_lon,min_lat,max_lon,max_lat` filter (**longitude first**, like GeoJSON and Leaflet's `getBounds().toBBoxString()`) |
 | GET  | `/media/images/{image_id}.jpg` | Blurred image (from the shared folder) |
 
 ### Element

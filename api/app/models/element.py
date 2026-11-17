@@ -50,7 +50,9 @@ class Element(Base):
     __tablename__ = "elements"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    name: Mapped[str] = mapped_column(String(128))  # e.g. "Stop", "Candeeiro", "Ecoponto"
+    name: Mapped[str] = mapped_column(
+        String(128)
+    )  # e.g. "Stop", "Candeeiro", "Ecoponto"
     category: Mapped[ElementCategory] = mapped_column(
         pg_enum(ElementCategory, "element_category"), index=True
     )
@@ -78,7 +80,9 @@ class Element(Base):
     # No FK on purpose: observations already point here (avoids a circular FK).
     best_observation_id: Mapped[uuid.UUID | None] = mapped_column(default=None)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

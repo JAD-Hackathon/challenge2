@@ -2,7 +2,12 @@ import uuid
 
 from app.core.exceptions import NotFoundError
 from app.database.postgis import point
-from app.models.element import Element, ElementCategory, ElementStatus, status_after_verify
+from app.models.element import (
+    Element,
+    ElementCategory,
+    ElementStatus,
+    status_after_verify,
+)
 from app.repositories import element as element_repo
 from app.schemas.element import ElementRead, ElementUpdate
 from app.schemas.image import attribution
@@ -26,7 +31,9 @@ def to_element_read(element: Element) -> ElementRead:
         image_id=image.id if image else None,
         image_url=media.media_url(image.blurred_image_path) if image else None,
         bbox_xyxy=best.bbox_xyxy if best else None,
-        attribution=attribution(image.author, image.license, image.source) if image else None,
+        attribution=attribution(image.author, image.license, image.source)
+        if image
+        else None,
         observation_count=len(element.observations),
         created_at=element.created_at,
         updated_at=element.updated_at,
@@ -34,9 +41,13 @@ def to_element_read(element: Element) -> ElementRead:
 
 
 def list_elements(
-    db: Session, category: ElementCategory | None = None, status: ElementStatus | None = None
+    db: Session,
+    category: ElementCategory | None = None,
+    status: ElementStatus | None = None,
 ) -> list[ElementRead]:
-    return [to_element_read(e) for e in element_repo.list_elements(db, category, status)]
+    return [
+        to_element_read(e) for e in element_repo.list_elements(db, category, status)
+    ]
 
 
 def get_element(db: Session, element_id: uuid.UUID) -> ElementRead:
@@ -63,14 +74,16 @@ def flag_false_positive(db: Session, element_id: uuid.UUID) -> ElementRead:
     return to_element_read(element)
 
 
-def update_element(db: Session, element_id: uuid.UUID, changes: ElementUpdate) -> ElementRead:
+def update_element(
+    db: Session, element_id: uuid.UUID, changes: ElementUpdate
+) -> ElementRead:
     """A technician fixes the type, attributes (e.g. the speed limit) or position."""
     element = _get(db, element_id)
     element.category, element.type, element.name, element.attributes = changes.classify(
         element.category, element.type, element.attributes or {}
     )
     if changes.latitude is not None and changes.longitude is not None:
-        element.geom = point(changes.latitude, changes.longitude)
+        element.geom = point(lat=changes.latitude, lon=changes.longitude)
     element.status = ElementStatus.CORRECTED
     db.commit()
     return to_element_read(element)

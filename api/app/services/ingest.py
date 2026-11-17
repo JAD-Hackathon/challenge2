@@ -46,7 +46,11 @@ def ingest_video(db: Session, video: UploadedVideo) -> VideoResponse:
         results = []
         for index, frame in enumerate(result.frames):
             filename = video.frame_filename(frame.camera.frame_index)
-            base = {"index": index, "filename": filename, "image_id": frame.camera.image_id}
+            base = {
+                "index": index,
+                "filename": filename,
+                "image_id": frame.camera.image_id,
+            }
             if image_repo.image_exists(db, frame.camera.image_id):
                 results.append(ImageResult(**base, status=ImageStatus.DUPLICATE))
                 continue
@@ -55,9 +59,13 @@ def ingest_video(db: Session, video: UploadedVideo) -> VideoResponse:
                 filename=filename, author=video.meta.author, license=video.meta.license,
                 captured_at=frame.captured_at,
             )  # fmt: skip
-            results.append(_processed(base, frame.blurred_image_path, frame.observations))
+            results.append(
+                _processed(base, frame.blurred_image_path, frame.observations)
+            )
         dedup = run_dedup(db, work.pending)
-    return VideoResponse(images=results, sequence_id=result.sequence_id, **_changes(db, dedup))
+    return VideoResponse(
+        images=results, sequence_id=result.sequence_id, **_changes(db, dedup)
+    )
 
 
 # --- steps ---
@@ -66,7 +74,9 @@ def ingest_video(db: Session, video: UploadedVideo) -> VideoResponse:
 @dataclass
 class _Work:
     pending: PendingObservations = field(default_factory=PendingObservations)
-    written: list[Path] = field(default_factory=list)  # blurred images ML wrote for this upload
+    written: list[Path] = field(
+        default_factory=list
+    )  # blurred images ML wrote for this upload
 
 
 @contextmanager
@@ -77,7 +87,9 @@ def _all_or_nothing(db: Session) -> Iterator[_Work]:
         db.commit()
     except Exception:
         db.rollback()
-        for path in work.written:  # don't leave blurred images of an upload that wasn't saved
+        for (
+            path
+        ) in work.written:  # don't leave blurred images of an upload that wasn't saved
             path.unlink(missing_ok=True)
         raise
 
@@ -93,11 +105,15 @@ def _infer_one(db: Session, work: _Work, upload: UploadedImage) -> ImageResult:
     base = {"index": upload.index, "filename": upload.filename, "image_id": image_id}
 
     if image_repo.image_exists(db, image_id):
-        return ImageResult(**base, status=ImageStatus.DUPLICATE, error="image_id already processed")
+        return ImageResult(
+            **base, status=ImageStatus.DUPLICATE, error="image_id already processed"
+        )
 
     camera = meta.camera(image_id)
     try:
-        inferred = ml_client.infer(upload.content, camera, upload.content_type or "image/jpeg")
+        inferred = ml_client.infer(
+            upload.content, camera, upload.content_type or "image/jpeg"
+        )
     except MLInputError as e:
         return ImageResult(**base, status=ImageStatus.FAILED, error=e.detail)
 
@@ -126,7 +142,7 @@ def _save_image(
         Image(
             id=camera.image_id,
             source=camera.source,
-            geom=point(camera.lat, camera.lon),
+            geom=point(lat=camera.lat, lon=camera.lon),
             heading=camera.heading,
             fov=camera.fov,
             camera_height_m=camera.camera_height_m,

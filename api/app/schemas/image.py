@@ -17,7 +17,9 @@ def new_image_id() -> str:
 PLATFORMS = {"mapillary": "Mapillary", "kartaview": "KartaView"}
 
 
-def attribution(author: str | None, license: str | None, source: str | None = None) -> str | None:
+def attribution(
+    author: str | None, license: str | None, source: str | None = None
+) -> str | None:
     """Credit line, e.g. '© jsmith (Mapillary), CC BY-SA 4.0' (required by CC BY-SA)."""
     platform = PLATFORMS.get(source or "")
     credit = f"© {author}" if author else None
@@ -37,8 +39,12 @@ class ImageMeta(BaseModel):
     )
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
-    heading: float = Field(ge=0, lt=360, description="Camera direction, ° clockwise from north")
-    fov: float | None = Field(None, gt=0, lt=180, description="Horizontal field of view, °")
+    heading: float = Field(
+        ge=0, lt=360, description="Camera direction, ° clockwise from north"
+    )
+    fov: float | None = Field(
+        None, gt=0, lt=180, description="Horizontal field of view, °"
+    )
     camera_height_m: float | None = Field(None, gt=0)
     source: Source | None = None
     sequence_id: str | None = None
@@ -62,7 +68,9 @@ class UploadedImage:
     filename: str | None
     content_type: str | None
     content: bytes
-    meta: ImageMeta | None  # None: its Mapillary/KartaView record can't be used, see error
+    meta: (
+        ImageMeta | None
+    )  # None: its Mapillary/KartaView record can't be used, see error
     error: str | None = None
 
 
@@ -84,9 +92,12 @@ class ImageResult(BaseModel):
 
 class BatchResponse(BaseModel):
     images: list[ImageResult]
-    elements: list[ElementRead] = Field(description="Elements created or updated by the batch")
+    elements: list[ElementRead] = Field(
+        description="Elements created or updated by the batch"
+    )
     removed_element_ids: list[uuid.UUID] = Field(
-        default_factory=list, description="Elements merged into others: remove them from the map"
+        default_factory=list,
+        description="Elements merged into others: remove them from the map",
     )
 
 
@@ -114,4 +125,6 @@ class ImageRead(BaseModel):
     attribution: str | None
     captured_at: datetime | None
     created_at: datetime
-    observations: list[ObservationRead] = Field(description="Detections, draw bbox_xyxy on image")
+    observations: list[ObservationRead] = Field(
+        description="Detections, draw bbox_xyxy on image"
+    )

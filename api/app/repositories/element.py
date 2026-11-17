@@ -2,6 +2,7 @@ import math
 import uuid
 from collections.abc import Iterable, Sequence
 
+from app.database.postgis import LatLon
 from app.models.element import Element, ElementCategory, ElementStatus
 from app.models.observation import Observation
 from sqlalchemy import Select, func, select
@@ -21,7 +22,9 @@ def _for_read(stmt: Select) -> Select:
 
 
 def list_elements(
-    db: Session, category: ElementCategory | None = None, status: ElementStatus | None = None
+    db: Session,
+    category: ElementCategory | None = None,
+    status: ElementStatus | None = None,
 ) -> Sequence[Element]:
     """status=None -> every element except rejected ones."""
     stmt = _for_read(select(Element).order_by(Element.created_at))
@@ -49,15 +52,15 @@ def get_elements(db: Session, element_ids: Iterable[uuid.UUID]) -> Sequence[Elem
 
 
 def list_near(
-    db: Session, points: Sequence[tuple[float, float]], margin_m: float
+    db: Session, points: Sequence[LatLon], margin_m: float
 ) -> Sequence[Element]:
-    """Elements (any status) inside the bbox of (lat, lon) points grown by margin_m."""
+    """Elements (any status) inside the bbox of the points grown by margin_m."""
     if not points:
         return []
-    lats, lons = [p[0] for p in points], [p[1] for p in points]
+    lats, lons = [p.lat for p in points], [p.lon for p in points]
     dlat = margin_m / METERS_PER_DEGREE
     dlon = dlat / max(math.cos(math.radians(max(abs(min(lats)), abs(max(lats))))), 0.01)
-    envelope = func.ST_MakeEnvelope(
+    envelope = func.ST_MakeEnvelope(  # xmin, ymin, xmax, ymax: lon first
         min(lons) - dlon, min(lats) - dlat, max(lons) + dlon, max(lats) + dlat, 4326
     )
     stmt = (

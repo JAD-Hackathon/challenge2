@@ -19,7 +19,9 @@ def list_layers():
 def export_geojson(table: str, bbox: BBoxQuery = None, schema: SchemaQuery = "public"):
     filename, body = service.export_geojson(table, schema, bbox)
     return Response(
-        content=body, media_type="application/geo+json", headers=real.attachment(filename)
+        content=body,
+        media_type="application/geo+json",
+        headers=real.attachment(filename),
     )
 
 

@@ -22,7 +22,9 @@ from pydantic import TypeAdapter, ValidationError
 
 ImagesForm = Annotated[
     list[UploadFile],
-    File(description="Image files (JPEG/PNG). Repeat the `images` field for each file."),
+    File(
+        description="Image files (JPEG/PNG). Repeat the `images` field for each file."
+    ),
 ]
 MetasForm = Annotated[
     str,
@@ -40,11 +42,15 @@ MetasForm = Annotated[
 
 VideoForm = Annotated[
     UploadFile,
-    File(description="Video (mp4, mov, ...), up to MAX_VIDEO_MB. Passed to ML, never saved."),
+    File(
+        description="Video (mp4, mov, ...), up to MAX_VIDEO_MB. Passed to ML, never saved."
+    ),
 ]
 TrackForm = Annotated[
     UploadFile,
-    File(description="GPS track recorded during the video: GPX with a <time> on each point"),
+    File(
+        description="GPS track recorded during the video: GPX with a <time> on each point"
+    ),
 ]
 VideoMetaForm = Annotated[
     str,
@@ -56,7 +62,10 @@ VideoMetaForm = Annotated[
 ]
 
 _metas = TypeAdapter(list[dict[str, Any]])
-SOURCE_RECORDS = {"mapillary": street_view.from_mapillary, "kartaview": street_view.from_kartaview}
+SOURCE_RECORDS = {
+    "mapillary": street_view.from_mapillary,
+    "kartaview": street_view.from_kartaview,
+}
 
 
 def read_batch(images: list[UploadFile], metas: str) -> list[UploadedImage]:

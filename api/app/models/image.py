@@ -17,7 +17,9 @@ class Image(Base):
 
     # image_id sent to ML, which names the blurred file after it (mly_<id>, kv_<id>, up_<uuid>)
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    source: Mapped[str | None] = mapped_column(String(16))  # mapillary | kartaview | video | null
+    source: Mapped[str | None] = mapped_column(
+        String(16)
+    )  # mapillary | kartaview | video | null
 
     # Camera position and direction
     geom = mapped_column(Geometry(geometry_type="POINT", srid=4326), nullable=False)
@@ -37,7 +39,9 @@ class Image(Base):
     license: Mapped[str | None] = mapped_column(String(64))
     captured_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     observations: Mapped[list["Observation"]] = relationship(
         back_populates="image", cascade="all, delete-orphan"

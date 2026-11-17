@@ -1,10 +1,23 @@
+from typing import NamedTuple
+
 from app.database.base import Base
 from geoalchemy2 import WKTElement
 from sqlalchemy import Engine, text
 
+# Coordinate order: our code always names lat and lon, so they can't be swapped by position.
+# The lon-first formats (WKT, GeoJSON, ST_MakeEnvelope, the export `bbox`) are only ever
+# built in one place each: point() below, repositories/spatial.py and repositories/element.py.
 
-def point(lat: float, lon: float) -> WKTElement:
-    """Value for a POINT(4326) column. WKT order is lon, lat."""
+
+class LatLon(NamedTuple):
+    """A WGS84 position. Build it with keywords: LatLon(lat=40.64, lon=-8.65)."""
+
+    lat: float
+    lon: float
+
+
+def point(*, lat: float, lon: float) -> WKTElement:
+    """Value for a POINT(4326) column. Keyword-only because WKT order is lon, lat."""
     return WKTElement(f"POINT({lon} {lat})", srid=4326)
 
 

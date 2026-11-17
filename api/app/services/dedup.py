@@ -10,7 +10,7 @@ import uuid
 from dataclasses import dataclass, field
 
 from app.core import taxonomy
-from app.database.postgis import point
+from app.database.postgis import LatLon, point
 from app.models.element import LOCKED_STATUSES, Element
 from app.models.observation import Observation
 from app.repositories import element as element_repo
@@ -31,7 +31,9 @@ class PendingObservations:
     detections: list[ml.Observation] = field(default_factory=list)
     cameras: dict[str, ml.CameraMeta] = field(default_factory=dict)
 
-    def add(self, db: Session, detection: ml.Observation, camera: ml.CameraMeta) -> Observation:
+    def add(
+        self, db: Session, detection: ml.Observation, camera: ml.CameraMeta
+    ) -> Observation:
         has_position = detection.est_lat is not None and detection.est_lon is not None
         row = Observation(
             id=detection.observation_id,
@@ -41,7 +43,11 @@ class PendingObservations:
             bbox_xyxy=detection.bbox_xyxy,
             attributes=detection.attributes or {},
             bearing_deg=detection.bearing_deg,
-            geom=point(detection.est_lat, detection.est_lon) if has_position else None,
+            geom=(
+                point(lat=detection.est_lat, lon=detection.est_lon)
+                if has_position
+                else None
+            ),
             uncertainty_m=detection.uncertainty_m,
         )
         db.add(row)
@@ -50,15 +56,22 @@ class PendingObservations:
         self.cameras[camera.image_id] = camera
         return row
 
-    def points(self) -> list[tuple[float, float]]:
-        points = [(c.lat, c.lon) for c in self.cameras.values()]
-        points += [(o.est_lat, o.est_lon) for o in self.detections if o.est_lat and o.est_lon]
+    def points(self) -> list[LatLon]:
+        """Cameras + estimated object positions, to find existing elements nearby."""
+        points = [LatLon(lat=c.lat, lon=c.lon) for c in self.cameras.values()]
+        points += [
+            LatLon(lat=o.est_lat, lon=o.est_lon)
+            for o in self.detections
+            if o.est_lat is not None and o.est_lon is not None
+        ]
         return points
 
 
 @dataclass
 class DedupResult:
-    elements: list[Element]  # created, updated, or (if human-checked) just given new views
+    elements: list[
+        Element
+    ]  # created, updated, or (if human-checked) just given new views
     removed_ids: list[uuid.UUID]
 
 
@@ -91,7 +104,9 @@ def _to_ml(element: Element) -> ml.MLElement:
     )
 
 
-def _apply(db: Session, response: ml.DedupResponse, pending: PendingObservations) -> DedupResult:
+def _apply(
+    db: Session, response: ml.DedupResponse, pending: PendingObservations
+) -> DedupResult:
     touched: dict[uuid.UUID, Element] = {}
 
     for found in response.elements:
@@ -110,7 +125,9 @@ def _apply(db: Session, response: ml.DedupResponse, pending: PendingObservations
         try:
             category, type_ = taxonomy.split_class(found.type)
         except ValueError:
-            log.warning("ML returned unknown class %r, observations left unassigned", found.type)
+            log.warning(
+                "ML returned unknown class %r, observations left unassigned", found.type
+            )
             continue
 
         if element is None:
@@ -121,7 +138,7 @@ def _apply(db: Session, response: ml.DedupResponse, pending: PendingObservations
         element.category = category
         element.type = type_
         element.confidence = found.confidence
-        element.geom = point(found.lat, found.lon)
+        element.geom = point(lat=found.lat, lon=found.lon)
         element.best_observation_id = found.best_observation_id
         if found.attributes is not None:
             element.attributes = found.attributes
@@ -136,7 +153,11 @@ def _apply(db: Session, response: ml.DedupResponse, pending: PendingObservations
     removed: list[uuid.UUID] = []
     for element_id in response.removed_element_ids:
         element = db.get(Element, element_id)
-        if element is None or element.status in LOCKED_STATUSES or element_id in touched:
+        if (
+            element is None
+            or element.status in LOCKED_STATUSES
+            or element_id in touched
+        ):
             continue
         db.delete(element)  # its observations are kept, unassigned
         removed.append(element_id)

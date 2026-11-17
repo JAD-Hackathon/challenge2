@@ -14,7 +14,9 @@ def mirrors[F: Callable](real: Callable) -> Callable[[F], F]:
 
     def decorate(mock: F) -> F:
         if mock.__name__ != real.__name__:
-            raise NameError(f"mock endpoint {mock.__name__} must be named {real.__name__}")
+            raise NameError(
+                f"mock endpoint {mock.__name__} must be named {real.__name__}"
+            )
         mock.__doc__ = real.__doc__
         return mock
 

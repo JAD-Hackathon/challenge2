@@ -20,7 +20,13 @@ def post_video(client, content: bytes = b"fake mp4 bytes", meta: dict | None = N
 
 
 def test_video_frames_from_ml_are_stored(client, shared_dir, ml_stub):
-    meta = {"spacing_m": 10, "time_offset_s": 2, "fov": 70, "author": "team", "license": "CC0"}
+    meta = {
+        "spacing_m": 10,
+        "time_offset_s": 2,
+        "fov": 70,
+        "author": "team",
+        "license": "CC0",
+    }
     response = post_video(client, meta=meta)
     assert response.status_code == 200
     body = response.json()
@@ -28,14 +34,20 @@ def test_video_frames_from_ml_are_stored(client, shared_dir, ml_stub):
     # what ML received: the video and GPX untouched, the settings, a fresh sequence_id
     (video, track, sent) = ml_stub.videos[0]
     assert (video, track) == (b"fake mp4 bytes", GPX)
-    assert sent.sequence_id == body["sequence_id"] and sent.sequence_id.startswith("vid_")
+    assert sent.sequence_id == body["sequence_id"] and sent.sequence_id.startswith(
+        "vid_"
+    )
     assert (sent.spacing_m, sent.time_offset_s, sent.fov) == (10, 2, 70)
     assert "author" not in sent.model_dump()  # attribution stays in the API
 
     # every frame ML kept is stored like an uploaded image
     seq = body["sequence_id"]
-    assert [r["image_id"] for r in body["images"]] == [f"{seq}_{i:04d}" for i in range(3)]
-    assert [r["filename"] for r in body["images"]] == [f"ride.mp4#{i}" for i in range(3)]
+    assert [r["image_id"] for r in body["images"]] == [
+        f"{seq}_{i:04d}" for i in range(3)
+    ]
+    assert [r["filename"] for r in body["images"]] == [
+        f"ride.mp4#{i}" for i in range(3)
+    ]
     assert [r["status"] for r in body["images"]] == ["processed"] * 3
     assert {e["type"] for e in body["elements"]} == {"speed_limit", "street_lamp"}
     assert len(ml_stub.dedups) == 1  # one /dedup for the whole video
@@ -61,7 +73,9 @@ def test_video_refused_by_ml(client, ml_stub):
 
 def test_video_validation(client, ml_stub):
     bad_meta = post_video(client, meta={"spacing_m": 0})
-    assert bad_meta.status_code == 422 and bad_meta.json()["detail"].startswith("meta.spacing_m")
+    assert bad_meta.status_code == 422 and bad_meta.json()["detail"].startswith(
+        "meta.spacing_m"
+    )
 
     no_track = client.post(VIDEOS, files=[("video", ("ride.mp4", b"x", "video/mp4"))])
     assert no_track.status_code == 422
@@ -83,14 +97,18 @@ def fake_ml_server(monkeypatch, respond) -> list[httpx.Request]:
         ml_client,
         "_client",
         lambda timeout: httpx.Client(
-            base_url="http://ml", transport=httpx.MockTransport(handler), timeout=timeout
+            base_url="http://ml",
+            transport=httpx.MockTransport(handler),
+            timeout=timeout,
         ),
     )
     return requests
 
 
 def test_video_while_ml_has_no_video_endpoint(client, monkeypatch):
-    requests = fake_ml_server(monkeypatch, lambda r: httpx.Response(404, json={"detail": "x"}))
+    requests = fake_ml_server(
+        monkeypatch, lambda r: httpx.Response(404, json={"detail": "x"})
+    )
     response = post_video(client, meta={"spacing_m": 5})
 
     assert response.status_code == 501
@@ -99,14 +117,22 @@ def test_video_while_ml_has_no_video_endpoint(client, monkeypatch):
     (sent,) = requests  # the multipart request the API sends to ML
     assert sent.url.path == "/infer-video"
     assert sent.extensions["timeout"]["read"] == settings.ML_VIDEO_TIMEOUT_S
-    for part in (b'name="video"', b"fake mp4 bytes", b'name="track"', GPX, b'name="meta"'):
+    for part in (
+        b'name="video"',
+        b"fake mp4 bytes",
+        b'name="track"',
+        GPX,
+        b'name="meta"',
+    ):
         assert part in sent.content
     assert b'"spacing_m":5.0' in sent.content
 
 
 def test_video_response_from_ml_is_parsed(client, monkeypatch):
     def respond(request: httpx.Request) -> httpx.Response:
-        sequence_id = request.content.split(b'"sequence_id":"')[1].split(b'"')[0].decode()
+        sequence_id = (
+            request.content.split(b'"sequence_id":"')[1].split(b'"')[0].decode()
+        )
         frame = {
             "camera": {
                 "image_id": f"{sequence_id}_0000", "lat": 40.64, "lon": -8.65, "heading": 90,

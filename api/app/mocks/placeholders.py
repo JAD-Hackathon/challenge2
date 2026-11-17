@@ -21,7 +21,9 @@ def draw(path: Path, image_id: str, elements: Iterable[Mapping[str, Any]]) -> No
         shade = int(150 + 80 * y / horizon)
         canvas.line([(0, y), (width, y)], fill=(shade - 40, shade - 10, shade + 20))
     canvas.rectangle([0, horizon, width, height], fill=(95, 95, 100))  # road
-    canvas.rectangle([0, horizon, width, horizon + 25], fill=(160, 155, 150))  # sidewalk
+    canvas.rectangle(
+        [0, horizon, width, horizon + 25], fill=(160, 155, 150)
+    )  # sidewalk
 
     font = ImageFont.load_default(size=18)
     for element in elements:

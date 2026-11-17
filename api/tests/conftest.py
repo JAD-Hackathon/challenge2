@@ -54,7 +54,9 @@ class MLStub:
     def __init__(self) -> None:
         self.inferred: list[ml.CameraMeta] = []
         self.dedups: list[ml.DedupRequest] = []
-        self.videos: list[tuple[bytes, bytes, ml.VideoInferMeta]] = []  # video, track, meta
+        self.videos: list[
+            tuple[bytes, bytes, ml.VideoInferMeta]
+        ] = []  # video, track, meta
 
     def infer(self, image: bytes, meta: ml.CameraMeta, content_type="image/jpeg"):
         if image == b"ML down":
@@ -62,13 +64,17 @@ class MLStub:
         try:
             picture = Image.open(io.BytesIO(image)).convert("RGB")
         except (UnidentifiedImageError, OSError):
-            raise MLInputError("ML unsupported_image: could not read the image") from None
+            raise MLInputError(
+                "ML unsupported_image: could not read the image"
+            ) from None
         self.inferred.append(meta)
         media.images_dir().mkdir(parents=True, exist_ok=True)
         picture.save(media.images_dir() / f"{meta.image_id}.jpg")
         return self._detections(meta)
 
-    def infer_video(self, video: UploadedVideo, sequence_id: str) -> ml.InferVideoResponse:
+    def infer_video(
+        self, video: UploadedVideo, sequence_id: str
+    ) -> ml.InferVideoResponse:
         content = video.file.read()  # what would be streamed to ML
         if content == b"not a video":
             raise MLInputError("ML unsupported_video: could not read the video")
@@ -81,7 +87,9 @@ class MLStub:
                 frame_index=i,
             )  # fmt: skip
             media.images_dir().mkdir(parents=True, exist_ok=True)
-            Image.new("RGB", (320, 240), "grey").save(media.images_dir() / f"{camera.image_id}.jpg")
+            Image.new("RGB", (320, 240), "grey").save(
+                media.images_dir() / f"{camera.image_id}.jpg"
+            )
             inferred = self._detections(camera)
             frames.append(
                 ml.InferredFrame(
@@ -122,7 +130,9 @@ class MLStub:
         return ml.DedupResponse(
             elements=[
                 ml.MLElement(
-                    element_id=uuid.uuid5(uuid.NAMESPACE_URL, str(group[0].observation_id)),
+                    element_id=uuid.uuid5(
+                        uuid.NAMESPACE_URL, str(group[0].observation_id)
+                    ),
                     type=type_,
                     lat=sum(o.est_lat for o in group) / len(group),
                     lon=sum(o.est_lon for o in group) / len(group),

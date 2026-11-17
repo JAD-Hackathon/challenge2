@@ -13,15 +13,24 @@ from sqlalchemy.orm import Session
 
 
 def parse_bbox(bbox: str | None) -> BBox | None:
+    """'min_lon,min_lat,max_lon,max_lat', longitude first: the GeoJSON order, and what
+    Leaflet's map.getBounds().toBBoxString() returns. 422 if it isn't a valid WGS84 box."""
     if bbox is None:
         return None
     try:
-        parts = tuple(float(v) for v in bbox.split(","))
-    except ValueError:
-        parts = ()
-    if len(parts) != 4 or parts[0] >= parts[2] or parts[1] >= parts[3]:
-        raise InvalidInputError("bbox must be 'min_lon,min_lat,max_lon,max_lat'")
-    return parts  # type: ignore[return-value]
+        box: BBox | None = BBox(*(float(v) for v in bbox.split(",")))
+    except (TypeError, ValueError):  # not 4 values / not numbers
+        box = None
+    if (
+        box is None
+        or not -180 <= box.min_lon < box.max_lon <= 180
+        or not -90 <= box.min_lat < box.max_lat <= 90
+    ):
+        raise InvalidInputError(
+            "bbox must be 'min_lon,min_lat,max_lon,max_lat' (longitude first), "
+            "e.g. -8.66,40.62,-8.63,40.65 for central Aveiro"
+        )
+    return box
 
 
 def list_layers(db: Session) -> list[SpatialTable]:
@@ -60,10 +69,16 @@ def export_csv(
 
 def _cell(value: object) -> object:
     # JSON columns (e.g. attributes) and arrays (bbox_xyxy) as JSON, not Python repr
-    return json.dumps(value, ensure_ascii=False) if isinstance(value, dict | list) else value
+    return (
+        json.dumps(value, ensure_ascii=False)
+        if isinstance(value, dict | list)
+        else value
+    )
 
 
-def write_csv(columns: list[str], rows: Sequence[Mapping[str, object]]) -> Iterator[str]:
+def write_csv(
+    columns: list[str], rows: Sequence[Mapping[str, object]]
+) -> Iterator[str]:
     buf = io.StringIO()
     writer = csv.writer(buf)
 

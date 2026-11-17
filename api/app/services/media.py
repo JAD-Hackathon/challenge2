@@ -7,7 +7,9 @@ from pathlib import Path
 
 from app.core.config import settings
 
-MEDIA_MOUNT = "/media"  # where main.py serves the folder; MEDIA_URL must end with this path
+MEDIA_MOUNT = (
+    "/media"  # where main.py serves the folder; MEDIA_URL must end with this path
+)
 IMAGES_SUBDIR = "images"
 
 
