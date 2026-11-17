@@ -23,3 +23,25 @@ def xyxy_to_yolo(
     yc = (y0 + y1) / 2
 
     return xc / img_w, yc / img_h, w / img_w, h / img_h
+
+
+def clamp_box(box: BBox, width: int, height: int) -> BBox:
+    """Clamp bounding box to correct size."""
+    x1, y1, x2, y2 = box
+    return (
+        min(max(x1, 0.0), width),
+        min(max(y1, 0.0), height),
+        min(max(x2, 0.0), width),
+        min(max(y2, 0.0), height),
+    )
+
+
+def resolve_device(spec: str) -> str:
+    """'auto' -> 'cuda:0' if available else 'cpu'."""
+    if spec != "auto":
+        return spec
+    try:
+        import torch
+    except ImportError:
+        return "cpu"
+    return "cuda:0" if torch.cuda.is_available() else "cpu"

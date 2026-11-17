@@ -15,6 +15,7 @@ privacy:
   plate_weights: plate.pt
 
 detection:
+  backend: rtdetr
   weights: detector.pt
   conf: 0.30
   iou: 0.50

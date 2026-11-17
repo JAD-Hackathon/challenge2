@@ -70,11 +70,13 @@ class PrivacyConfig(_Cfg):
 
 
 class DetectionConfig(_Cfg):
+    backend: Literal["rtdetr", "yolo", "grounding_dino"] = "rtdetr"
     weights: str = "detector.pt"
     conf: float = Field(0.30, ge=0, le=1)
     iou: float = Field(0.50, ge=0, le=1)
     imgsz: int = Field(960, gt=0)
     device: str = "auto"
+    class_map: dict[str, str] = Field(default_factory=dict)
 
 
 class ClassificationConfig(_Cfg):
