@@ -7,12 +7,14 @@ import torch
 from PIL import Image
 from transformers import AutoModelForZeroShotObjectDetection, AutoProcessor
 from src.detection.helpers import xyxy_to_yolo
-from src.io.common import DATA_DIR, MANIFEST_PATH, RAW_DIR, read_manifest
+from src.io.common import read_manifest
+from src.config import get_settings
 
 load_dotenv()
 TOKEN = os.getenv("HF_TOKEN")
 
-LABELS_DIR = DATA_DIR / "labels"
+paths_config = get_settings().paths
+
 DEFAULT_MODEL_ID = "IDEA-Research/grounding-dino-base"
 
 
@@ -67,14 +69,14 @@ def run_prelabel(
     model.eval()
 
     prompt, phrase_to_id = build_prompt_mapping(DEFAULT_CLASS_PROMPTS)
-    LABELS_DIR.mkdir(parents=True, exist_ok=True)
+    paths_config.labels_dir.mkdir(parents=True, exist_ok=True)
 
-    classes_file = LABELS_DIR / "classes.txt"
+    classes_file = paths_config.labels_dir / "classes.txt"
     with classes_file.open("w", encoding="utf-8") as file:
         for class_id in sorted(DEFAULT_CLASS_PROMPTS):
             file.write(f"{DEFAULT_CLASS_PROMPTS[class_id][0].replace(' ', '_')}\n")
 
-    manifest = read_manifest(MANIFEST_PATH)
+    manifest = read_manifest(paths_config.manifest_file)
     records = list(manifest.values())
     if limit is not None:
         records = records[:limit]
@@ -85,12 +87,12 @@ def run_prelabel(
     for rec in records:
         if not rec.save_path:
             continue
-        img_path = RAW_DIR / rec.save_path
+        img_path = paths_config.raw_dir / rec.save_path
         if not img_path.exists():
             continue
 
         stem = Path(img_path).stem
-        label_path = LABELS_DIR / f"{stem}.txt"
+        label_path = paths_config.labels_dir / f"{stem}.txt"
 
         if label_path.exists() and not overwrite:
             continue
