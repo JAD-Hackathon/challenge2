@@ -1,5 +1,4 @@
 import io
-import math
 import random
 import uuid
 
@@ -17,18 +16,11 @@ from src.service.schemas import (
     Observation,
 )
 from src.taxonomy import get_taxonomy
-
-METERS_PER_DEGREE = 111_320
-
-
-def _distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Flat-earth distance, good enough for a few metres."""
-    dy = (lat2 - lat1) * METERS_PER_DEGREE
-    dx = (lon2 - lon1) * METERS_PER_DEGREE * math.cos(math.radians(lat1))
-    return math.hypot(dx, dy)
+from src.geometry.helpers import distance_m, pixel_to_bearing, destination_point
 
 
 def _open_image(image_bytes: bytes) -> Image.Image:
+    """Decode image bytes into an RGB image."""
     try:
         return Image.open(io.BytesIO(image_bytes)).convert("RGB")
     except (UnidentifiedImageError, OSError):
@@ -51,6 +43,7 @@ def _save_blurred(image: Image.Image, image_id: str) -> str:
 def _fake_observation(
     rng: random.Random, camera: CameraMeta, width: int, height: int, index: int
 ) -> Observation:
+    """Generate a mock observation with randomized detection and location data."""
     settings = get_settings()
 
     box_w = rng.randint(30, 80)
@@ -58,19 +51,17 @@ def _fake_observation(
     x1 = rng.randint(0, max(0, width - box_w))
     y1 = rng.randint(0, max(0, height - box_h))
 
-    # bearing from the horizontal position of the box centre
-    fov = camera.fov or settings.geometry.default_fov_deg
-    focal_px = (width / 2) / math.tan(math.radians(fov / 2))
     center_x = x1 + box_w / 2
-    angle = math.degrees(math.atan((center_x - width / 2) / focal_px))
-    bearing = (camera.heading + angle) % 360
 
-    # position: move 5-20 m from the camera along the bearing
-    distance = rng.uniform(5, 20)
-    lat = camera.lat + distance * math.cos(math.radians(bearing)) / METERS_PER_DEGREE
-    lon = camera.lon + distance * math.sin(math.radians(bearing)) / (
-        METERS_PER_DEGREE * math.cos(math.radians(camera.lat))
+    bearing = pixel_to_bearing(
+        center_x=center_x,
+        image_width=width,
+        heading_deg=camera.heading,
+        fov_deg=camera.fov or settings.geometry.default_fov_deg,
     )
+
+    distance = rng.uniform(5, 20)
+    lat, lon = destination_point(camera.lat, camera.lon, distance, bearing)
 
     return Observation(
         observation_id=str(uuid.UUID(int=rng.getrandbits(128))),
@@ -85,6 +76,7 @@ def _fake_observation(
 
 
 def mock_infer(image_bytes: bytes, camera: CameraMeta) -> InferResponse:
+    """Generate mock inference results and save a blurred version of the image."""
     image = _open_image(image_bytes)
     width, height = image.size
     path = _save_blurred(image, camera.image_id)
@@ -117,7 +109,7 @@ def mock_dedup(request: DedupRequest) -> DedupResponse:
             first = group[0]
             if (
                 first.type == obs.type
-                and _distance_m(first.est_lat, first.est_lon, obs.est_lat, obs.est_lon)
+                and distance_m(first.est_lat, first.est_lon, obs.est_lat, obs.est_lon)
                 <= radius
             ):
                 group.append(obs)

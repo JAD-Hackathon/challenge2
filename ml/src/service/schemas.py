@@ -9,6 +9,7 @@ class CameraMeta(BaseModel):
     heading: float = Field(ge=0, lt=360)
     fov: float | None = None
     camera_height_m: float | None = None
+    camera_type: str | None = None
     source: Literal["mapillary", "kartaview", "video"] | None = None
     sequence_id: str | None = None
     frame_index: int | None = None

@@ -40,8 +40,13 @@ Goal of preparation: arrive at the hackathon with a **working template** where e
 ```
 ml/
 ├── data/
-│    ├── labels/<image_id>.txt  # YOLO-format labels, same ID as the image (in the shared folder)
-│    └── splits/                # train / val / test lists
+│   ├── raw/                    # downloaded images + API pages
+│   │   ├── mapillary/
+│   │   └── kartaview/
+│   ├── manifest/
+│   │   └── images.jsonl        # one line per image: ids, pose, author, licence...
+│   ├── labels/<image_id>.txt   # YOLO-format labels, same ID as the image (in the shared folder)
+│   └── splits/                 # train / val / test lists
 ├── weights/hf | torch | yolo   # pretrained weights, downloaded once, not in the repo
 │
 ├── configs/
@@ -59,8 +64,9 @@ ml/
 │   ├── io/                     # loaders: mapillary, kartaview, video frames
 │   ├── privacy/                # face + plate blur
 │   ├── detection/              # base.py + yolo.py, rtdetr.py, openvocab.py
-│   ├── classification/         # sign_classifier.py, container_classifier.py
+│   ├── classification/         # sign/container/lighter_classifier.py
 │   ├── geometry/
+│   │   ├── helpers.py          # helper functions for some calculations
 │   │   ├── camera.py           # intrinsics, FOV, equirect→perspective, bearing
 │   │   ├── size_prior.py       # distance from known object height
 │   │   ├── ground_plane.py     # ray–ground intersection
@@ -100,14 +106,14 @@ Phases are ordered by priority, not fixed dates. Adjust to the number of days be
 - [✓] Check compute: local GPU? Colab/Kaggle? Note limits.
 
 ### Phase 2: Data and ground truth
-- [ ] Pick a **practice zone** in Aveiro (a street with signs, lamps, ecopontos).
-- [ ] Create a free **Mapillary developer token**; download a small sample (images + metadata: position, compass angle, camera type, author, licence) for candidate streets; test KartaView; record a short own video with GPS log.
-- [ ] Keep **author + licence per image** (CC BY-SA attribution) and start the **tools and licences list** needed for the deliverables.
-- [ ] Check Mapillary coverage density per candidate street; this decides the pilot zone.
-- [ ] Build a **ground-truth set**: manually mark ~30–50 objects (class + lat/lon) per category in the practice zone.
+- [✓] Pick a **practice zone** in Aveiro (a street with signs, lamps, ecopontos). (--bbox="-8.660,40.636,-8.648,40.645" + --bbox="-8.6585,40.6395,-8.6545,40.6430")
+- [✓] Create a free **Mapillary developer token**; download a small sample (images + metadata: position, compass angle, camera type, author, licence) for candidate streets; test KartaView; ~~record a short own video with GPS log~~.
+- [✓] Keep **author + licence per image** (CC BY-SA attribution) and start the **tools and licences list** needed for the deliverables.
+- [✓] Check Mapillary coverage density per candidate street; this decides the pilot zone.
+- [✓] Build a **ground-truth set**: manually mark ~30–50 objects (class + lat/lon) per category in the practice zone.
 - [ ] Collect public datasets: MTSD, GTSDB/GTSRB, Mapillary Vistas (check licences), Open Images street-furniture classes.
 - [ ] Write the **label mapping** inside the dataset conversion script (public labels, e.g. MTSD → our classes in `taxonomy_pt.yaml`).
-- [ ] Set up annotation tool (CVAT or Label Studio); start labelling lamps and waste containers (these have no ready dataset).
+- [✓] Set up annotation tool (CVAT or Label Studio); start labelling lamps and waste containers (these have no ready dataset).
 
 ### Phase 3: Detection and classification
 - [ ] Detector wrapper (base interface) + pretrained baseline for signs.

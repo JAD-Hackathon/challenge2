@@ -29,6 +29,7 @@ classification:
 geometry:
   default_fov_deg: 90.0
   default_camera_height_m: 1.5
+  default_camera_type: "perspective"
   camera_height_sigma_m: 0.3
   pitch_sigma_deg: 1.5
   ground_plane_max_distance_m: 15.0
