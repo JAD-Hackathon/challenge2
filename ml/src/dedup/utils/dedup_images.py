@@ -4,14 +4,15 @@ import argparse
 from pathlib import Path
 from PIL import Image
 
+from src.config import get_settings
 from src.geometry.helpers import distance_m
 from src.io.common import (
-    MANIFEST_PATH,
-    RAW_DIR,
     ImageRecord,
     read_manifest,
     upsert_manifest,
 )
+
+paths_config = get_settings().paths
 
 
 def dhash(image_path: Path, hash_size: int = 8) -> int:
@@ -44,7 +45,7 @@ def deduplicate(
     max_hash_dist: int = 6,
     delete_files: bool = False,
 ) -> None:
-    records = list(read_manifest(MANIFEST_PATH).values())
+    records = list(read_manifest(paths_config.manifest_file).values())
     records.sort(key=lambda r: (r.width or 0) * (r.height or 0), reverse=True)
 
     kept: list[tuple[ImageRecord, int]] = []
@@ -53,7 +54,7 @@ def deduplicate(
     for rec in records:
         if not rec.save_path:
             continue
-        img_path = RAW_DIR / rec.save_path
+        img_path = paths_config.raw_dir / rec.save_path
         if not img_path.exists():
             continue
 
@@ -81,12 +82,12 @@ def deduplicate(
 
     if delete_files:
         for rec in removed:
-            p = RAW_DIR / rec.save_path
+            p = paths_config.raw_dir / rec.save_path
             if p.exists():
                 p.unlink()
 
-        MANIFEST_PATH.unlink(missing_ok=True)
-        upsert_manifest([r for r, _ in kept], MANIFEST_PATH)
+        paths_config.manifest_file.unlink(missing_ok=True)
+        upsert_manifest([r for r, _ in kept], paths_config.manifest_file)
 
 
 if __name__ == "__main__":

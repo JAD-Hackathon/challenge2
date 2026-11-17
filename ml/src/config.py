@@ -24,9 +24,12 @@ class _Cfg(BaseModel):
 class PathsConfig(_Cfg):
     shared_dir: Path = Path("../data")
     images_subdir: str = "images"
+    data_dir: Path = Path("data")
+    raw_dir: Path = Path("data/raw")
     labels_dir: Path = Path("data/labels")
     splits_dir: Path = Path("data/splits")
     weights_dir: Path = Path("weights")
+    manifest_file: Path = Path("data/manifest/images.jsonl")
     taxonomy_file: Path = Path("configs/taxonomy_pt.yaml")
 
     @property

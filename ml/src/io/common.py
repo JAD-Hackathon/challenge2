@@ -11,12 +11,10 @@ from typing import Literal, Any, Callable
 
 import requests
 from pydantic import BaseModel, ConfigDict, Field
-from src.config import ML_ROOT
 from src.geometry.helpers import distance_m
+from src.config import get_settings
 
-DATA_DIR = ML_ROOT / "data"
-RAW_DIR = DATA_DIR / "raw"
-MANIFEST_PATH = DATA_DIR / "manifest" / "images.jsonl"
+paths_config = get_settings().paths
 
 _NAME_SPACE = uuid.UUID("3f2b8c1e-6d4a-4f7b-9a53-2c1d8e7f0a96")
 Source = Literal["mapillary", "kartaview", "video"]
@@ -73,7 +71,7 @@ def make_image_id(source: str, source_id: str) -> str:
 # manifest
 
 
-def read_manifest(path: Path = MANIFEST_PATH) -> dict[str, ImageRecord]:
+def read_manifest(path: Path = paths_config.manifest_file) -> dict[str, ImageRecord]:
     """Read menifest and return dictionary {image_id: ImageRecord}."""
     if not path.exists() or not path.is_file():
         return {}
@@ -86,7 +84,9 @@ def read_manifest(path: Path = MANIFEST_PATH) -> dict[str, ImageRecord]:
     return out
 
 
-def upsert_manifest(records: Iterable[ImageRecord], path: Path = MANIFEST_PATH) -> int:
+def upsert_manifest(
+    records: Iterable[ImageRecord], path: Path = paths_config.manifest_file
+) -> int:
     """Merge records by image_id and rewrite atomically. Returns total size."""
     merged = read_manifest(path)
     for record in records:
@@ -127,7 +127,7 @@ def request_retry(
 
 
 def download_image(
-    record: ImageRecord, url: str, save_dir: Path = RAW_DIR
+    record: ImageRecord, url: str, save_dir: Path = paths_config.raw_dir
 ) -> ImageRecord:
     """
     Fetch to RAW_DIR/<source>/<source_id>.jpg (skips if present). Returns the record

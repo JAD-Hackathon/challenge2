@@ -2,22 +2,24 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from src.io.common import DATA_DIR, MANIFEST_PATH, read_manifest
+from src.config import get_settings
+from src.io.common import read_manifest
 
-LABELS_DIR = DATA_DIR / "labels"
-OUT_JSON = DATA_DIR / "ls_tasks.json"
+paths_config = get_settings().paths
+
+OUT_JSON = paths_config.data_dir / "ls_tasks.json"
 CLASSES = ["traffic_sign", "street_lamp", "trash_bin"]
 
 
 def build_tasks() -> None:
-    manifest = read_manifest(MANIFEST_PATH)
+    manifest = read_manifest(paths_config.manifest_file)
     tasks = []
 
     for rec in manifest.values():
         if not rec.save_path:
             continue
         stem = Path(rec.save_path).stem
-        label_file = LABELS_DIR / f"{stem}.txt"
+        label_file = paths_config.labels_dir / f"{stem}.txt"
         if not label_file.exists():
             continue
 
