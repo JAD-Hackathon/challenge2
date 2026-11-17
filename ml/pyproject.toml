@@ -28,6 +28,8 @@ dependencies = [
     "uvicorn[standard]>=0.54.0",
     "python-dotenv>=1.2.4",
     "transformers>=5.23.0",
+    "albumentations>=2.0.8",
+    "torchmetrics>=1.9.0",
 ]
 
 [dependency-groups]
