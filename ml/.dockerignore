@@ -6,3 +6,4 @@ weights/
 notebooks/
 tests/
 *.md
+src/detection/training
