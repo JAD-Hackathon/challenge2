@@ -25,6 +25,23 @@ def xyxy_to_yolo(
     return xc / img_w, yc / img_h, w / img_w, h / img_h
 
 
+def yolo_to_xyxy(
+    cx: float, cy: float, w: float, h: float, img_w: int, img_h: int, margin: float
+) -> tuple[int, int, int, int]:
+    """Convert normalized YOLO box coordinates to padded pixel xyxy bounds."""
+    box_w = w * img_w
+    box_h = h * img_h
+    pad_w = box_w * margin
+    pad_h = box_h * margin
+
+    x1 = max(0, int(round((cx * img_w) - box_w / 2 - pad_w)))
+    y1 = max(0, int(round((cy * img_h) - box_h / 2 - pad_h)))
+    x2 = min(img_w, int(round((cx * img_w) + box_w / 2 + pad_w)))
+    y2 = min(img_h, int(round((cy * img_h) + box_h / 2 + pad_h)))
+
+    return x1, y1, x2, y2
+
+
 def clamp_box(box: BBox, width: int, height: int) -> BBox:
     """Clamp bounding box to correct size."""
     x1, y1, x2, y2 = box
