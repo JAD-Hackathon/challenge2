@@ -120,7 +120,7 @@ class MultiCategoryClassifier:
 
         mapping: list[tuple[Category, str]] = [
             ("sign", cfg.sign_weights),
-            ("waste", cfg.container_weights),
+            ("waste", cfg.waste_weights),
             ("light", cfg.lighting_weights),
         ]
         for category, weight_file in mapping:

@@ -83,7 +83,7 @@ class DetectionConfig(_Cfg):
 class ClassificationConfig(_Cfg):
     enabled: bool = False
     sign_weights: str = "sign_cls.onnx"
-    container_weights: str = "container_cls.onnx"
+    waste_weights: str = "waste_cls.onnx"
     lighting_weights: str = "lighting_cls.onnx"
 
 

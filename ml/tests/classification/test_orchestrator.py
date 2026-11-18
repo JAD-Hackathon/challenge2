@@ -15,7 +15,7 @@ def cfg(enabled=True):
     return SimpleNamespace(
         enabled=enabled,
         sign_weights="sign.onnx",
-        container_weights="cont.onnx",
+        waste_weights="cont.onnx",
         lighting_weights="light.onnx",
     )
 
