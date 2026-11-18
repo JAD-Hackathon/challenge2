@@ -8,7 +8,7 @@ notebooks/
 tests/
 *.md
 src/detection/training/
-src/detection/utils/
+src/classification/training/
 
 weights/*
 !weights/rtdetr_balanced_best/

@@ -32,7 +32,7 @@ detection:
 classification:
   enabled: false
   sign_weights: sign_cls.onnx
-  container_weights: container_cls.onnx
+  waste_weights: waste_cls.onnx
   lighting_weights: lighting_cls.onnx
 
 geometry:
