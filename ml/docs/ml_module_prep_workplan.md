@@ -111,23 +111,23 @@ Phases are ordered by priority, not fixed dates. Adjust to the number of days be
 - [✓] Keep **author + licence per image** (CC BY-SA attribution) and start the **tools and licences list** needed for the deliverables.
 - [✓] Check Mapillary coverage density per candidate street; this decides the pilot zone.
 - [✓] Build a **ground-truth set**: manually mark ~30–50 objects (class + lat/lon) per category in the practice zone.
-- [ ] Collect public datasets: MTSD, GTSDB/GTSRB, Mapillary Vistas (check licences), Open Images street-furniture classes.
-- [ ] Write the **label mapping** inside the dataset conversion script (public labels, e.g. MTSD → our classes in `taxonomy_pt.yaml`).
+- [✓] Collect public datasets: MTSD, GTSDB/GTSRB, Mapillary Vistas (check licences), Open Images street-furniture classes.
+- [✓] Write the **label mapping** inside the dataset conversion script (public labels, e.g. MTSD → our classes in `taxonomy_pt.yaml`).
 - [✓] Set up annotation tool (CVAT or Label Studio); start labelling lamps and waste containers (these have no ready dataset).
 
 ### Phase 3: Detection and classification
-- [ ] Detector wrapper (base interface) + pretrained baseline for signs.
-- [ ] Add a second detector implementation (e.g. RT-DETR vs YOLO) and compare. Watch the licences (Ultralytics is AGPL).
-- [ ] Open-vocabulary pre-labelling script (Grounding DINO / OWLv2 / YOLO-World + SAM) for lamps and waste.
-- [ ] Training script for fine-tuning (config-driven, logs to a local tracker such as MLflow or W&B).
+- [✓] Detector wrapper (base interface) + pretrained baseline for signs.
+- [✓] Add a second detector implementation (e.g. RT-DETR vs YOLO) and compare. Watch the licences (Ultralytics is AGPL).
+- [✓] Open-vocabulary pre-labelling script (Grounding DINO / OWLv2 / YOLO-World + SAM) for lamps and waste.
+- [✓] Training script for fine-tuning (config-driven, logs to a local tracker such as MLflow or W&B).
 - [ ] Sign crop classifier (fine-tuned or CLIP-based) with PT class set.
 - [ ] Container-type classifier (underground / island / general).
 - [ ] Report: precision/recall/mAP per category on a held-out set.
 
 ### Phase 4: Privacy
-- [ ] Face + plate detector wrapper and blur function (pixelate/Gaussian, with margin).
-- [ ] Pipeline guarantee: **blur before saving or returning any image**; raw frames only in memory.
-- [ ] Test: sample images → assert no remaining face/plate detections.
+- [✓] Face + plate detector wrapper and blur function (pixelate/Gaussian, with margin).
+- [✓] Pipeline guarantee: **blur before saving or returning any image**; raw frames only in memory.
+- [✓] Test: sample images → assert no remaining face/plate detections.
 
 ### Phase 5: Geometry and geolocation (all options)
 Implement each behind a common `DistanceEstimator` interface returning `(distance_m, uncertainty_m)`.
