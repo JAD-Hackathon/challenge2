@@ -12,3 +12,5 @@ src/detection/utils/
 
 weights/*
 !weights/rtdetr_balanced_best/
+!weights/face.onnx
+!weights/plate.onnx
