@@ -11,8 +11,8 @@ privacy:
   method: gaussian                      # gaussian | pixelate | black
   margin: 0.2
   conf: 0.25
-  face_weights: face.pt
-  plate_weights: plate.pt
+  face_weights: face.onnx
+  plate_weights: plate.onnx
 
 detection:
   backend: rtdetr
@@ -31,9 +31,9 @@ detection:
 
 classification:
   enabled: false
-  sign_weights: sign_cls.pt
-  container_weights: container_cls.pt
-  lighting_weights: lighting_cls.pt
+  sign_weights: sign_cls.onnx
+  container_weights: container_cls.onnx
+  lighting_weights: lighting_cls.onnx
 
 geometry:
   default_fov_deg: 90.0
@@ -51,7 +51,7 @@ geometry:
   depth:
     enabled: false
     model: depth_anything_v2            # depth_anything_v2 | metric3d | unidepth
-    weights: depth.pt
+    weights: depth.onnx
 
 dedup:
   radius_m: {sign: 2.5, light: 4.0, waste: 5.0}
