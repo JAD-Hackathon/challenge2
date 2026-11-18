@@ -39,47 +39,64 @@ Goal of preparation: arrive at the hackathon with a **working template** where e
 
 ```
 ml/
-├── data/
-│   ├── raw/                    # downloaded images + API pages
-│   │   ├── mapillary/
-│   │   └── kartaview/
-│   ├── manifest/
-│   │   └── images.jsonl        # one line per image: ids, pose, author, licence...
-│   ├── labels/<image_id>.txt   # YOLO-format labels, same ID as the image (in the shared folder)
-│   └── splits/                 # train / val / test lists
-├── weights/hf | torch | yolo   # pretrained weights, downloaded once, not in the repo
-│
 ├── configs/
-│   ├── base.yaml               # models, thresholds, radii, methods
-│   └── taxonomy_pt.yaml        # class list, ground flag, size priors
+│   ├── base.yaml                       # models, thresholds, radii, geometry methods
+│   └── taxonomy_pt.yaml                # class taxonomy, ground flags, size priors
+├── data/
+│   ├── raw/                            # KartaView & KartaView imagery
+│   ├── manifest/images.jsonl           # image metadata: IDs, GPS pose, author, licence
+│   ├── labels/<image_id>.txt           # YOLO-format Stage-1 bounding box annotations
+│   ├── splits/                         # train.txt / val.txt / test.txt
+│   └── crops/                          # extracted crops & ImageFolder datasets (sign/light/waste)
+├── docs/
+│   ├── benchmarks/                     # evaluation reports & metrics
+│   ├── contract/                       # API & integration specifications
+│   ├── licenses/                       # THIRD_PARTY_LICENSES.md (Apache 2.0 / MIT compliance)
+│   ├── data_contract.md
+│   └── decisions.md                    # architecture & model selection log
+├── weights/                            # model checkpoints & exported ONNX graphs (gitignored)
 ├── src/
-│   ├── service/
-│   │   ├── main.py             # FastAPI app, /health
-│   │   ├── routes/
-│   │   │   ├── routes_infer.py # POST /infer
-│   │   │   └── routes_dedup.py # POST /dedup
-│   │   ├── schemas.py          # pydantic models = the contract
-│   │   ├── exceptions.py       # custom exceptions
-│   │   └── mock.py             # ML_MOCK=1 fake responses
-│   ├── io/                     # loaders: mapillary, kartaview, video frames
-│   ├── privacy/                # face + plate blur
-│   ├── detection/              # base.py + yolo.py, rtdetr.py
-│   ├── classification/         # sign/container/lighter_classifier.py
-│   ├── geometry/
-│   │   ├── utils/helpers.py    # helper functions for some calculations
-│   │   ├── camera.py           # intrinsics, FOV, equirect→perspective, bearing
-│   │   ├── size_prior.py       # distance from known object height
-│   │   ├── ground_plane.py     # ray–ground intersection
-│   │   ├── depth.py            # base + depth_anything.py, metric3d.py, unidepth.py
-│   │   ├── triangulation.py    # multi-ray least squares
-│   │   └── geo.py              # lat/lon <-> local metric (pyproj)
-│   ├── dedup/                  # clustering, tracking (ByteTrack), fusion, confidence
-│   ├── pipeline.py             # orchestrates stages
-│   └── cli.py                  # `ml run`, `ml eval`, `ml export`
-├── eval/                       # metrics, ground-truth loader, reports
-├── notebooks/                  # experiments only
-├── tests/
-├── Dockerfile / pyproject.toml
+│   ├── service/                        # FastAPI microservice layer
+│   │   ├── main.py                     # app factory & /health endpoint
+│   │   ├── routes/                     # infer_routes.py (POST /infer), dedup_routes.py (POST /dedup)
+│   │   ├── schemas.py                  # Pydantic request/response contracts
+│   │   ├── exceptions.py               # domain-specific HTTP exceptions
+│   │   └── mock.py                     # ML_MOCK=1 synthetic responses
+│   ├── io/                             # data ingestion & manifest utilities
+│   │   ├── common.py                   # ImageRecord schema & JSONL manifest I/O
+│   │   ├── mapillary.py                # Mapillary API downloader
+│   │   └── kartaview.py                # KartaView API downloader
+│   ├── privacy/                        # GDPR anonymization stage
+│   │   ├── anonymizer.py               # orchestrator for face & plate redaction
+│   │   ├── blur.py                     # Gaussian / pixelate / black blur kernels
+│   │   └── detectors/                  # face.py (YuNet), plate.py (ONNX)
+│   ├── detection/                      # Stage-1 coarse object detection
+│   │   ├── base.py                     # Detector ABC, Detection schema, registry
+│   │   ├── rtdetr.py                   # HuggingFace RT-DETR backend
+│   │   ├── training/                   # common/ (COCO export, metrics), rtdetr/, yolo/
+│   │   └── utils/                      # prepare_split.py, export_ls.py, prelabel.py
+│   ├── classification/                 # Stage-2 fine-grained subclass refinement
+│   │   ├── base.py                     # CropClassifier ABC
+│   │   ├── onnx_classifier.py          # ONNXCropClassifier & MultiCategoryClassifier
+│   │   ├── training/                   # dataset.py, trainer.py, train.py, export.py, metrics.py
+│   │   └── utils/                      # extract_crops.py, prepare_dataset.py (LS + GTSRB)
+│   ├── geometry/                       # 3D localization & coordinate transforms
+│   │   ├── camera.py                   # intrinsics, FOV, equirect -> perspective, ray bearing
+│   │   ├── size_prior.py               # distance estimation from known physical dimensions
+│   │   ├── ground_plane.py             # ray-ground intersection for grounded objects
+│   │   ├── depth.py                    # monocular depth estimator interface & backends
+│   │   ├── triangulation.py            # multi-view ray least-squares triangulation
+│   │   ├── geo.py                      # WGS84 (lat/lon) <-> local metric projections (pyproj)
+│   │   └── utils/helpers.py            # BBox & vector math helpers
+│   ├── dedup/                          # spatial-temporal deduplication & fusion
+│   │   └── utils/dedup_images.py       # image-level deduplication utilities
+│   ├── config.py                       # Pydantic settings loader & YAML/env overrides
+│   ├── taxonomy.py                     # Portuguese urban asset taxonomy & size priors
+│   ├── pipeline.py                     # end-to-end inference pipeline orchestrator
+│   └── cli.py                          # CLI entrypoints (`ml run`, `ml eval`, `ml export`)
+├── tests/                              # pytest suite (classification, detection, privacy, general)
+├── Dockerfile
+├── pyproject.toml
 └── README.md
 ```
 
@@ -120,9 +137,9 @@ Phases are ordered by priority, not fixed dates. Adjust to the number of days be
 - [✓] Add a second detector implementation (e.g. RT-DETR vs YOLO) and compare. Watch the licences (Ultralytics is AGPL).
 - [✓] Open-vocabulary pre-labelling script (Grounding DINO / OWLv2 / YOLO-World + SAM) for lamps and waste.
 - [✓] Training script for fine-tuning (config-driven, logs to a local tracker such as MLflow or W&B).
-- [ ] Sign crop classifier (fine-tuned or CLIP-based) with PT class set.
-- [ ] Container-type classifier (underground / island / general).
-- [ ] Report: precision/recall/mAP per category on a held-out set.
+- [✓] Sign crop classifier (fine-tuned or CLIP-based) with PT class set.
+- [✓] Container-type classifier (underground / island / general).
+- [✓] Report: precision/recall/mAP per category on a held-out set.
 
 ### Phase 4: Privacy
 - [✓] Face + plate detector wrapper and blur function (pixelate/Gaussian, with margin).
