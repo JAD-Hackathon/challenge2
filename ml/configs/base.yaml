@@ -30,7 +30,7 @@ detection:
     waste.general: waste.general
 
 classification:
-  enabled: false
+  enabled: true
   sign_weights: sign_cls.onnx
   waste_weights: waste_cls.onnx
   lighting_weights: lighting_cls.onnx
