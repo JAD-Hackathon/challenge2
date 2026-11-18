@@ -78,6 +78,76 @@
             box-shadow: 0 6px 14px rgba(27, 72, 161, .35);
         }
 
+        .legend-group {
+            margin-bottom: 6px;
+            font-size: .8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            color: #6c757d;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: .9rem;
+        }
+
+        .legend-icon {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
+        .stat-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            height: 100%;
+            padding: 18px 20px;
+            border: 1px solid #e6ebf3;
+            border-left: 4px solid var(--stat-color);
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(11, 31, 77, .06);
+            transition: transform .15s, box-shadow .2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 18px rgba(11, 31, 77, .12);
+        }
+
+        .stat-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            /* fundo = cor do cartão com transparência */
+            background: color-mix(in srgb, var(--stat-color) 12%, transparent);
+            color: var(--stat-color);
+            font-size: 1.4rem;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            line-height: 1;
+            color: #0b1f4d;
+        }
+
+        .stat-label {
+            margin-top: 4px;
+            font-size: .85rem;
+            color: #6c757d;
+        }
+
         @media (max-width: 576px) {
             .home-nav-btn {
                 flex: 1 1 100%;
@@ -104,11 +174,38 @@
         @if ($aba == '1')
             <h1>Aqui pode encontrar tudo o que já assinalamos!</h1>
 
+            @php
+                $byCategory = array_count_values(array_column($points, 'category'));
+                $stats = [
+                    ['label' => 'Elementos assinalados', 'value' => count($points), 'icon' => 'bi-geo-alt-fill', 'color' => '#1b48a1'],
+                    ['label' => 'Sinalização', 'value' => $byCategory['sign'] ?? 0, 'icon' => 'bi-sign-stop-fill', 'color' => '#d63939'],
+                    ['label' => 'Iluminação', 'value' => $byCategory['light'] ?? 0, 'icon' => 'bi-lightbulb-fill', 'color' => '#e0a800'],
+                    ['label' => 'Resíduos', 'value' => $byCategory['waste'] ?? 0, 'icon' => 'bi-trash3-fill', 'color' => '#2f9e44'],
+                ];
+            @endphp
+
+            <div class="row g-3 my-3">
+                @foreach ($stats as $stat)
+                    <div class="col-6 col-lg-3">
+                        <div class="stat-card" style="--stat-color: {{ $stat['color'] }}">
+                            <div class="stat-icon">
+                                <i class="bi {{ $stat['icon'] }}"></i>
+                            </div>
+                            <div>
+                                <div class="stat-value">{{ $stat['value'] }}</div>
+                                <div class="stat-label">{{ $stat['label'] }}</div>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            
 
             <div class="row">
 
                 <div class="col-10">
-                    <div id="map" data-points='@json($points)' style="height: 400px; width: 100%;" wire:ignore></div>
+                    <div id="map" data-points='@json($points)' style="height: 500px; width: 100%;" wire:ignore></div>
 
                 </div>
                 <div class="col-2">
@@ -118,34 +215,17 @@
                         </div>
 
                         <div class="card-body">
-                            <ul class="list-unstyled mb-0">
-
-                                <li class="mb-2">
-                                    <i class="bi bi-signpost-2 me-2"></i>
-                                    Sinalização
-                                </li>
-
-                                <li class="mb-2">
-                                    <i class="bi bi-stoplights me-2"></i>
-                                    Semáforo
-                                </li>
-
-                                <li class="mb-2">
-                                    <i class="bi bi-lamp me-2"></i>
-                                    Candeeiro
-                                </li>
-
-                                <li class="mb-2">
-                                    <span style="color: blue;">●</span>
-                                    Ponto de interesse
-                                </li>
-
-                                <li class="mb-2">
-                                    <span style="color: red;">●</span>
-                                    Elemento detetado
-                                </li>
-
-                            </ul>
+                            @foreach ($legend as $group => $items)
+                                <h6 class="legend-group">{{ $group }}</h6>
+                                <ul class="list-unstyled mb-3">
+                                    @foreach ($items as $item)
+                                        <li class="legend-item">
+                                            <img src="{{ $item['icon'] }}" alt="" class="legend-icon">
+                                            {{ $item['label'] }}
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endforeach
                         </div>
                     </div>
                 </div>

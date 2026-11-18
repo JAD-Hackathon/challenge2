@@ -16,48 +16,113 @@ class Home extends Component
     public $file;
     public $points = [];
 
-    // REGRAS 
-    public static function setIcon($type, $subtype = null)
+    const LEGEND = [
+        'Sinalização' => [
+            ['sign', 'stop', 'Stop'],
+            ['sign', 'yield', 'Cedência de passagem'],
+            ['sign', 'speed_limit', 'Limite de velocidade'],
+        ],
+        'Iluminação' => [
+            ['light', 'street_lamp', 'Candeeiro'],
+            ['light', 'street_pole', 'Poste de luz'],
+        ],
+        'Resíduos' => [
+            ['waste', 'general', 'Contentor indiferenciado'],
+            ['waste', 'recycling_island', 'Ecoponto'],
+            ['waste', 'underground', 'Contentor subterrâneo'],
+        ],
+    ];
+
+    public static function legend()
+    {
+        return array_map(
+            fn ($items) => array_map(fn ($item) => [
+                'label' => $item[2],
+                'icon' => self::setIcon($item[0], $item[1]),
+            ], $items),
+            self::LEGEND
+        );
+    }
+
+    // REGRAS
+    public static function setIcon($category, $type, $subtype = null)
     {
         switch ($type) {
+            // SINAIS
             case 'speed_limit':
-                if ($subtype === '30') {
-                    return URL::asset('build/resources/imagens/icons/limite-de-velocidade-30.png');
-                } elseif ($subtype === '50') {
-                    return URL::asset('build/resources/imagens/icons/limite-de-velocidade-50.png');
-                } elseif ($subtype === '60') {
-                    return URL::asset('build/resources/imagens/icons/limite-de-velocidade-60.png');
-                } elseif ($subtype === '70') {
-                    return URL::asset('build/resources/imagens/icons/limite-de-velocidade-70.png');
-                } elseif ($subtype === '80') {
-                    return URL::asset('build/resources/imagens/icons/limite-de-velocidade-80.png');
-                } elseif ($subtype === '90') {
-                    return URL::asset('build/resources/imagens/icons/limite-de-velocidade-90.png');
-                } elseif ($subtype === '100') {
-                    return URL::asset('build/resources/imagens/icons/limite-de-velocidade-100.png');
-                } elseif ($subtype === '110') {
-                    return URL::asset('build/resources/imagens/icons/limite-de-velocidade-110.png');
-                } else {
-                    return URL::asset('build/resources/imagens/icons/limite-de-velocidade.png');
+                if ($category === 'sign') {
+                    if ($subtype) {
+                        return URL::asset(
+                            'build/resources/imagens/icons/' . $subtype . '_km.png'
+                        );
+                    }
+
+                    return URL::asset(
+                        'build/resources/imagens/icons/limite-de-velocidade.png'
+                    );
                 }
+                break;
+
             case 'stop':
-                return URL::asset('build/resources/imagens/icons/stop.png');
+                if ($category === 'sign') {
+                    return URL::asset(
+                        'build/resources/imagens/icons/stop.png'
+                    );
+                }
+                break;
+
             case 'yield':
-                return URL::asset('build/resources/imagens/icons/cedencia-passagem.png');
+                if ($category === 'sign') {
+                    return URL::asset(
+                        'build/resources/imagens/icons/cedencia-passagem.png'
+                    );
+                }
+                break;
+
+            // LUZES
             case 'street_pole':
-                return URL::asset('build/resources/imagens/icons/luz.png');
-            case 'traffic_light':
-                return URL::asset('build/resources/imagens/icons/semaforo.png');
-            ## LIXOS
+                if ($category === 'light') {
+                    return URL::asset(
+                        'build/resources/imagens/icons/poste-de-iluminacao.png'
+                    );
+                }
+                break;
+
+            case 'street_lamp':
+                if ($category === 'light') {
+                    return URL::asset(
+                        'build/resources/imagens/icons/luz.png'
+                    );
+                }
+                break;
+
+            // LIXOS
             case 'general':
-                return URL::asset('build/resources/imagens/icons/caixote-lixo.png');
+                if ($category === 'waste') {
+                    return URL::asset(
+                        'build/resources/imagens/icons/caixote-lixo.png'
+                    );
+                }
+                break;
+
             case 'recycling_island':
-                return URL::asset('build/resources/imagens/icons/lixos-variados.png');
+                if ($category === 'waste') {
+                    return URL::asset(
+                        'build/resources/imagens/icons/lixos-variados.png'
+                    );
+                }
+                break;
+
             case 'underground':
-                return URL::asset('build/resources/imagens/icons/caixa-de-lixo.png');
-            default:
-                return null;
+                if ($category === 'waste') {
+                    return URL::asset(
+                        'build/resources/imagens/icons/caixote-de-lixo.png'
+                    );
+                }
+                break;
         }
+
+        return null;
     }
 
     public function mount()
@@ -70,8 +135,8 @@ class Home extends Component
             'lat' => (float) $element['latitude'],
             'lng' => (float) $element['longitude'],
             'name' => $element['name'],
-            'type' => 'sinalizacao',
-            'icon' => self::setIcon($element['type']),
+            'category' => $element['category'],
+            'icon' => self::setIcon($element['category'],$element['type']),
         ], API::getData('elements'));
 
     }
@@ -96,8 +161,12 @@ class Home extends Component
         session()->flash('message', 'File uploaded successfully!');
     }
 
+    public function ex
+
     public function render()
     {
-        return view('livewire.home.home')->extends('layouts.app');
+        return view('livewire.home.home', [
+            'legend' => self::legend(),
+        ])->extends('layouts.app');
     }
 }
