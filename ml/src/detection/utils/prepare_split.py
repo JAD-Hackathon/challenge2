@@ -12,11 +12,12 @@ paths_config = get_settings().paths
 def build_splits(
     val_ratio: float = 0.20, test_ratio: float = 0.05, seed: int = 42
 ) -> None:
-    """Split images on train / validation / test samples (keep only images with label)."""
+    """Split labeled images into train / validation / test sets by sequence."""
+    if val_ratio < 0 or test_ratio < 0 or val_ratio + test_ratio >= 1:
+        raise ValueError("Invalid split ratios.")
     manifest = read_manifest(paths_config.manifest_file)
 
     by_seq: dict[str, list[Path]] = defaultdict(list)
-    matched = 0
 
     for rec in manifest.values():
         if not rec.save_path:
@@ -28,34 +29,64 @@ def build_splits(
         if img_path.exists() and lbl_path.exists():
             seq_key = rec.sequence_id or rec.image_id
             by_seq[seq_key].append(img_path.resolve())
-            matched += 1
 
-    sequences = list(by_seq.keys())
+    if not by_seq:
+        raise ValueError("No labeled images found.")
+
     rng = rnd.Random(seed)
+
+    # shuffle groups
+    sequences = list(by_seq.values())
     rng.shuffle(sequences)
 
-    n_total = matched
-    n_test = max(1, int(n_total * test_ratio))
-    n_val = max(1, int(n_total * val_ratio))
+    # sort by group size
+    sequences.sort(key=len, reverse=True)
 
-    splits: dict[str, list[Path]] = {"train": [], "val": [], "test": []}
+    n_total = sum(len(group) for group in sequences)
 
-    for seq in sequences:
-        imgs = by_seq[seq]
-        if len(splits["test"]) < n_test:
-            splits["test"].extend(imgs)
-        elif len(splits["val"]) < n_val:
-            splits["val"].extend(imgs)
-        else:
-            splits["train"].extend(imgs)
+    targets = {
+        "train": round(n_total * (1 - val_ratio - test_ratio)),
+        "val": round(n_total * val_ratio),
+        "test": round(n_total * test_ratio),
+    }
+
+    splits: dict[str, list[Path]] = {
+        "train": [],
+        "val": [],
+        "test": [],
+    }
+
+    # assign sequences
+    for group in sequences:
+        split = max(
+            targets,
+            key=lambda name: (targets[name] - len(splits[name]))
+            / max(targets[name], 1),
+        )
+
+        splits[split].extend(group)
 
     paths_config.splits_dir.mkdir(parents=True, exist_ok=True)
-    for split, sample in splits.items():
+
+    for split, images in splits.items():
+        rng.shuffle(images)
+
         out_file = paths_config.splits_dir / f"{split}.txt"
         out_file.write_text(
-            "\n".join(str(path) for path in sample) + "\n", encoding="utf-8"
+            "\n".join(str(path) for path in images) + "\n",
+            encoding="utf-8",
         )
-        print(f"{split}: {len(sample)} images -> {out_file}")
+
+        actual_ratio = len(images) / n_total
+
+        print(
+            f"{split}: {len(images)} images "
+            f"({actual_ratio:.1%}, target: "
+            f"{targets[split] / n_total:.1%}) -> {out_file}"
+        )
+
+    print(f"\nTotal: {n_total} images")
+    print(f"Sequences: {len(sequences)}")
 
 
 if __name__ == "__main__":
