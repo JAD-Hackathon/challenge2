@@ -35,9 +35,10 @@ def build_yolox_exp(
             self.num_classes = len(STAGE1_ID2LABEL)
             self.exp_name = arch
 
-            self.data_dir = str(coco_dir)
-            self.train_ann = str(coco_dir / "instances_train.json")
-            self.val_ann = str(coco_dir / "instances_val.json")
+            self.data_dir = ""
+            self.train_ann = str((coco_dir / "instances_train.json").resolve())
+            self.val_ann = str((coco_dir / "instances_val.json").resolve())
+            self.data_num_workers = 0
 
             self.input_size = (imgsz, imgsz)
             self.test_size = (imgsz, imgsz)

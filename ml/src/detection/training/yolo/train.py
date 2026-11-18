@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import sys
+import types
 import argparse
 from pathlib import Path
 
 import torch
+from pycocotools.cocoeval import COCOeval
 
 from src.config import get_settings
 from src.detection.training.yolo.exp import build_yolox_exp
@@ -43,7 +46,7 @@ def train(
         dist_url = None
         batch_size = b_size
         devices = 1 if torch.cuda.is_available() else 0
-        checkpoint = checkpoint_path
+        ckpt = checkpoint_path
         resume = False
         start_epoch = None
         num_machines = 1
@@ -53,6 +56,10 @@ def train(
         occupy = False
         logger = "tensorboard"
         opts = []
+
+    fake_fast_coco = types.ModuleType("yolox.layers.fast_coco_eval_api")
+    fake_fast_coco.COCOeval_opt = COCOeval
+    sys.modules["yolox.layers.fast_coco_eval_api"] = fake_fast_coco
 
     trainer = Trainer(exp, Args())
     trainer.train()
