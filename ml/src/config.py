@@ -65,28 +65,32 @@ class PrivacyConfig(_Cfg):
     method: Literal["gaussian", "pixelate", "black"] = "gaussian"
     margin: float = Field(0.2, ge=0, le=1)
     conf: float = Field(0.25, ge=0, le=1)
-    face_weights: str = "face.pt"
-    plate_weights: str = "plate.pt"
+    face_weights: str = "face.onnx"
+    plate_weights: str = "plate.onnx"
 
 
 class DetectionConfig(_Cfg):
-    weights: str = "detector.pt"
+    backend: Literal["rtdetr", "yolo"] = "rtdetr"
+    model_id: str = "PekingU/rtdetr_r50vd"
+    weights: str = "detector.onnx"
     conf: float = Field(0.30, ge=0, le=1)
     iou: float = Field(0.50, ge=0, le=1)
     imgsz: int = Field(960, gt=0)
     device: str = "auto"
+    class_map: dict[str, str] = Field(default_factory=dict)
 
 
 class ClassificationConfig(_Cfg):
     enabled: bool = False
-    sign_weights: str = "sign_cls.pt"
-    container_weights: str = "container_cls.pt"
+    sign_weights: str = "sign_cls.onnx"
+    container_weights: str = "container_cls.onnx"
+    lighting_weights: str = "lighting_cls.onnx"
 
 
 class DepthConfig(_Cfg):
     enabled: bool = False
     model: Literal["depth_anything_v2", "metric3d", "unidepth"] = "depth_anything_v2"
-    weights: str = "depth.pt"
+    weights: str = "depth.onnx"
 
 
 class GeometryConfig(_Cfg):
