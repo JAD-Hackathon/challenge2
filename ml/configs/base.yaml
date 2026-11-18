@@ -15,13 +15,19 @@ privacy:
   plate_weights: plate.pt
 
 detection:
-  backend: rtdetr                       # rtdetr | yolo
-  weights: detector.pt
+  backend: rtdetr
+  weights: rtdetr_best
   conf: 0.30
   iou: 0.50
   imgsz: 960
   device: auto                          # auto | cpu | cuda:0
-  class_map: {traffic_sign: sign.other, street_lamp: light.street_lamp, trash_bin: waste.general}
+  class_map:
+    traffic_sign: sign.other
+    street_lamp: light.street_lamp
+    trash_bin: waste.general
+    sign.other: sign.other
+    light.street_lamp: light.street_lamp
+    waste.general: waste.general
 
 classification:
   enabled: false

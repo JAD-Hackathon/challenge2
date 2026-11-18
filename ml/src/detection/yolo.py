@@ -12,7 +12,7 @@ import torch
 from PIL import Image
 from torchvision.ops import batched_nms
 
-from src.detection.base import Detection, Detector, register
+from src.detection.base import Detection, Detector
 from src.detection.utils.helpers import resolve_device
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ _YOLOX_ID_TO_NAME: dict[int, str] = {
 }
 
 
-@register
+# @register
 class YOLODetector(Detector):
     """YOLOX object detector backed by ONNX Runtime (Apache-2.0 / MIT)."""
 

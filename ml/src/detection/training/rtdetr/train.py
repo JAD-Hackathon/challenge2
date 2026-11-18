@@ -168,4 +168,5 @@ if __name__ == "__main__":
         lr=args.lr,
         imgsz=args.imgsz,
         out_dir=args.out_dir,
+        balanced_sampler=args.balanced_sampler,
     )
