@@ -1,6 +1,7 @@
 services:
   db:
     image: postgis/postgis:17-3.5
+    platform: linux/amd64 # no arm64 build exists; runs via emulation on Apple Silicon
     restart: unless-stopped
     env_file: api/.env
     ports:

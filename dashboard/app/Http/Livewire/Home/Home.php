@@ -2,6 +2,8 @@
 
 namespace App\Http\Livewire\Home;
 
+use App\Http\Controllers\API;
+use Illuminate\Support\Facades\URL;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -11,21 +13,67 @@ class Home extends Component
 
     public $aba = '1';
 
-    // EXEMPLO DE PONTOS NO MAPA
-    public $points = [
-        ['lat' => 40.6405, 'lng' => -8.6538, 'name' => 'Centro de Aveiro', 'type' => 'sinalizacao'],
-        ['lat' => 40.6303, 'lng' => -8.6575, 'name' => 'Universidade de Aveiro', 'type' => 'semaforo'],
-        ['lat' => 40.6412, 'lng' => -8.6510, 'name' => 'Semáforo Av. Lourenço Peixinho', 'type' => 'semaforo'],
-        ['lat' => 40.6390, 'lng' => -8.6560, 'name' => 'Sinal de STOP', 'type' => 'sinalizacao'],
-        ['lat' => 40.6420, 'lng' => -8.6575, 'name' => 'Candeeiro', 'type' => 'candeeiro'],
-        ['lat' => 40.6375, 'lng' => -8.6520, 'name' => 'Elemento detetado', 'type' => 'sinalizacao'],
-    ];
-
     public $file;
+    public $points = [];
+
+    // REGRAS 
+    public static function setIcon($type, $subtype = null)
+    {
+        switch ($type) {
+            case 'speed_limit':
+                if ($subtype === '30') {
+                    return URL::asset('build/resources/imagens/icons/limite-de-velocidade-30.png');
+                } elseif ($subtype === '50') {
+                    return URL::asset('build/resources/imagens/icons/limite-de-velocidade-50.png');
+                } elseif ($subtype === '60') {
+                    return URL::asset('build/resources/imagens/icons/limite-de-velocidade-60.png');
+                } elseif ($subtype === '70') {
+                    return URL::asset('build/resources/imagens/icons/limite-de-velocidade-70.png');
+                } elseif ($subtype === '80') {
+                    return URL::asset('build/resources/imagens/icons/limite-de-velocidade-80.png');
+                } elseif ($subtype === '90') {
+                    return URL::asset('build/resources/imagens/icons/limite-de-velocidade-90.png');
+                } elseif ($subtype === '100') {
+                    return URL::asset('build/resources/imagens/icons/limite-de-velocidade-100.png');
+                } elseif ($subtype === '110') {
+                    return URL::asset('build/resources/imagens/icons/limite-de-velocidade-110.png');
+                } else {
+                    return URL::asset('build/resources/imagens/icons/limite-de-velocidade.png');
+                }
+            case 'stop':
+                return URL::asset('build/resources/imagens/icons/stop.png');
+            case 'yield':
+                return URL::asset('build/resources/imagens/icons/cedencia-passagem.png');
+            case 'street_pole':
+                return URL::asset('build/resources/imagens/icons/luz.png');
+            case 'traffic_light':
+                return URL::asset('build/resources/imagens/icons/semaforo.png');
+            ## LIXOS
+            case 'general':
+                return URL::asset('build/resources/imagens/icons/caixote-lixo.png');
+            case 'recycling_island':
+                return URL::asset('build/resources/imagens/icons/lixos-variados.png');
+            case 'underground':
+                return URL::asset('build/resources/imagens/icons/caixa-de-lixo.png');
+            default:
+                return null;
+        }
+    }
 
     public function mount()
     {
         $this->aba = request()->query('aba', '1');
+
+        // dd(API::getData('elements'));
+
+        $this->points = array_map(fn ($element) => [
+            'lat' => (float) $element['latitude'],
+            'lng' => (float) $element['longitude'],
+            'name' => $element['name'],
+            'type' => 'sinalizacao',
+            'icon' => self::setIcon($element['type']),
+        ], API::getData('elements'));
+
     }
 
     public function changeAba($aba)

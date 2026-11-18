@@ -220,29 +220,13 @@
     <script>
         let map = null;
 
-        // ICON DO MAPA
-        const MAP_ICONS = {
-            sinalizacao: { icon: 'bi-signpost-2', color: '#f59f00' },
-            semaforo: { icon: 'bi-stoplights', color: '#2b8a3e' },
-            candeeiro: { icon: 'bi-lamp', color: '#495057' },
-            interesse: { dot: 'blue' },
-            detetado: { dot: 'red' },
-        };
-
-        // TAMANHO DO ICON (em px) — muda só este valor
-        const ICON_SIZE = 15;
-
-        function iconFor(type) {
-            const cfg = MAP_ICONS[type];
-
-            if (!cfg) return new L.Icon.Default();
-
-            return L.divIcon({
-                className: '',
-                html: `<i class="bi ${cfg.icon}" style="font-size:${ICON_SIZE}px; line-height:1; display:block;"></i>`,
-                iconSize: [ICON_SIZE, ICON_SIZE],
-                iconAnchor: [ICON_SIZE / 2, ICON_SIZE / 2], // centro do icon fica na coordenada
-                popupAnchor: [0, -ICON_SIZE / 2],
+        // Ícone a partir de uma imagem (URL vindo do PHP)
+        function imageIcon(url) {
+            return L.icon({
+                iconUrl: url,
+                iconSize: [24, 24],    // tamanho no mapa
+                iconAnchor: [16, 32],  // ponto da imagem que fica na coordenada (base ao centro)
+                popupAnchor: [0, -32], // popup abre por cima do ícone
             });
         }
 
@@ -275,7 +259,10 @@
             // Pontos vindos do PHP ($points no Home.php)
             const points = JSON.parse(el.dataset.points || '[]');
             points.forEach((p) => {
-                L.marker([p.lat, p.lng], { icon: iconFor(p.type) }).addTo(map).bindPopup(p.name);
+                const marker = p.icon
+                    ? L.marker([p.lat, p.lng], { icon: imageIcon(p.icon) })
+                    : L.marker([p.lat, p.lng]);
+                marker.addTo(map).bindPopup(p.name);
             });
 
             if (points.length > 1) {
