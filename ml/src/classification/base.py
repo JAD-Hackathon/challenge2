@@ -67,7 +67,10 @@ class CropClassifier(ABC):
         for idx, (pred_label, pred_conf) in zip(
             target_indices, predictions, strict=True
         ):
-            if pred_conf >= self.conf_threshold and pred_label in valid_names:
+            if (
+                pred_conf >= self.conf_threshold
+                and pred_label.startswith(f"{self.category}.")
+                and pred_label in valid_names
+            ):
                 updated[idx] = updated[idx].model_copy(update={"label": pred_label})
-
         return updated
