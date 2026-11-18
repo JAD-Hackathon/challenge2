@@ -1,9 +1,14 @@
 .venv
 __pycache__
+*.pyc
+.pytest_cache
 .git
 data/
-weights/
 notebooks/
 tests/
 *.md
-src/detection/training
+src/detection/training/
+src/detection/utils/
+
+weights/*
+!weights/rtdetr_balanced_best/
