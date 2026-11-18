@@ -70,17 +70,21 @@ class PrivacyConfig(_Cfg):
 
 
 class DetectionConfig(_Cfg):
+    backend: Literal["rtdetr", "yolo"] = "rtdetr"
+    model_id: str = "PekingU/rtdetr_r50vd"
     weights: str = "detector.pt"
     conf: float = Field(0.30, ge=0, le=1)
     iou: float = Field(0.50, ge=0, le=1)
     imgsz: int = Field(960, gt=0)
     device: str = "auto"
+    class_map: dict[str, str] = Field(default_factory=dict)
 
 
 class ClassificationConfig(_Cfg):
     enabled: bool = False
     sign_weights: str = "sign_cls.pt"
     container_weights: str = "container_cls.pt"
+    lighting_weights: str = "lighting_cls.pt"
 
 
 class DepthConfig(_Cfg):

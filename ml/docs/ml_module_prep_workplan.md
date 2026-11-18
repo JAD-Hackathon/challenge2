@@ -63,10 +63,10 @@ ml/
 │   │   └── mock.py             # ML_MOCK=1 fake responses
 │   ├── io/                     # loaders: mapillary, kartaview, video frames
 │   ├── privacy/                # face + plate blur
-│   ├── detection/              # base.py + yolo.py, rtdetr.py, openvocab.py
+│   ├── detection/              # base.py + yolo.py, rtdetr.py
 │   ├── classification/         # sign/container/lighter_classifier.py
 │   ├── geometry/
-│   │   ├── helpers.py          # helper functions for some calculations
+│   │   ├── utils/helpers.py    # helper functions for some calculations
 │   │   ├── camera.py           # intrinsics, FOV, equirect→perspective, bearing
 │   │   ├── size_prior.py       # distance from known object height
 │   │   ├── ground_plane.py     # ray–ground intersection

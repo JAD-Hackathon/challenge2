@@ -3,8 +3,8 @@ from __future__ import annotations
 import random as rnd
 from collections import defaultdict
 from pathlib import Path
-from src.io.common import read_manifest
 from src.config import get_settings
+from src.io.common import read_manifest
 
 paths_config = get_settings().paths
 
@@ -30,9 +30,9 @@ def build_splits(
             by_seq[seq_key].append(img_path.resolve())
             matched += 1
 
-    sequence = list(by_seq.keys())
+    sequences = list(by_seq.keys())
     rng = rnd.Random(seed)
-    rng.shuffle(sequence)
+    rng.shuffle(sequences)
 
     n_total = matched
     n_test = max(1, int(n_total * test_ratio))
@@ -40,11 +40,11 @@ def build_splits(
 
     splits: dict[str, list[Path]] = {"train": [], "val": [], "test": []}
 
-    for seq in sequence:
+    for seq in sequences:
         imgs = by_seq[seq]
         if len(splits["test"]) < n_test:
             splits["test"].extend(imgs)
-        if len(splits["val"]) < n_val:
+        elif len(splits["val"]) < n_val:
             splits["val"].extend(imgs)
         else:
             splits["train"].extend(imgs)
@@ -53,7 +53,7 @@ def build_splits(
     for split, sample in splits.items():
         out_file = paths_config.splits_dir / f"{split}.txt"
         out_file.write_text(
-            "\n".join(str(path for path in sample)) + "\n", encoding="utf-8"
+            "\n".join(str(path) for path in sample) + "\n", encoding="utf-8"
         )
         print(f"{split}: {len(sample)} images -> {out_file}")
 

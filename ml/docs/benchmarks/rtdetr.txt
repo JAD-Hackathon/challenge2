@@ -1,0 +1,16 @@
+=== Benchmark [rtdetr | rtdetr_balanced_best] on val ===
+mAP@50                : 0.7668
+mAP@50-95             : 0.4392
+latency_ms            : 94.6050
+AP_sign.other         : 0.4843
+AP_light.street_lamp  : 0.4777
+AP_waste.general      : 0.3557
+
+
+=== Benchmark [rtdetr | rtdetr_balanced_best] on test ===
+mAP@50                : 0.6791
+mAP@50-95             : 0.4522
+latency_ms            : 85.8029
+AP_sign.other         : 0.5308
+AP_light.street_lamp  : 0.4416
+AP_waste.general      : 0.3842

@@ -16,7 +16,11 @@ from src.service.schemas import (
     Observation,
 )
 from src.taxonomy import get_taxonomy
-from src.geometry.helpers import distance_m, pixel_to_bearing, destination_point
+from src.geometry.utils.helpers import (
+    distance_m,
+    pixel_to_bearing,
+    destination_point,
+)
 
 
 def _open_image(image_bytes: bytes) -> Image.Image:
