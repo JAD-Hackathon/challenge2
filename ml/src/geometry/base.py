@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.config import GeometryConfig, Method
-from src.geometry.camera import (
+from src.geometry.utils.camera import (
     focal_length_px,
     pano_bearing,
     perspective_bearing,

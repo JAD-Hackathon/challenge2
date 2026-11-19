@@ -81,13 +81,16 @@ ml/
 │   │   ├── training/                   # dataset.py, trainer.py, train.py, export.py, metrics.py
 │   │   └── utils/                      # extract_crops.py, prepare_dataset.py (LS + GTSRB)
 │   ├── geometry/                       # 3D localization & coordinate transforms
-│   │   ├── camera.py                   # intrinsics, FOV, equirect -> perspective, ray bearing
+│   │   ├── base.py                     # DistanceEstimator ABC
+│   │   ├── localizer.py                # Single-view 3D geolocation orchestrator
 │   │   ├── size_prior.py               # distance estimation from known physical dimensions
 │   │   ├── ground_plane.py             # ray-ground intersection for grounded objects
 │   │   ├── depth.py                    # monocular depth estimator interface & backends
 │   │   ├── triangulation.py            # multi-view ray least-squares triangulation
-│   │   ├── geo.py                      # WGS84 (lat/lon) <-> local metric projections (pyproj)
-│   │   └── utils/helpers.py            # BBox & vector math helpers
+│   │   └── utils/
+|   |       ├── helpers.py              # vector math helpers
+|   |       ├── geo.py                  # lat/lon ↔ ENU projection, bearing, destination point
+|   |       └── camera.py               # intrinsics, FOV, equirect -> perspective, ray bearing
 │   ├── dedup/                          # spatial-temporal deduplication & fusion
 │   │   └── utils/dedup_images.py       # image-level deduplication utilities
 │   ├── config.py                       # Pydantic settings loader & YAML/env overrides
