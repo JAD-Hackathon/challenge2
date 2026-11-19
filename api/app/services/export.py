@@ -34,10 +34,6 @@ def parse_bbox(bbox: str | None) -> BBox | None:
     return box
 
 
-def list_layers(db: Session) -> list[SpatialTable]:
-    return spatial_repo.list_spatial_tables(db)
-
-
 def _resolve(db: Session, table: str, schema: str) -> SpatialTable:
     t = spatial_repo.get_spatial_table(db, table, schema)
     if t is None:
