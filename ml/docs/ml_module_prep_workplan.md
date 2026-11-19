@@ -160,27 +160,22 @@ Implement each behind a common `DistanceEstimator` interface returning `(distanc
 - [✓] **Fusion strategy** (config): choose single method, or weighted combination by uncertainty, e.g. size prior + ground plane + depth, then refine with triangulation within clusters.
 
 ### Phase 6: Deduplication and confidence
-- [ ] Per-class clustering (DBSCAN/HDBSCAN) with class-specific radii in config.
-- [ ] Appearance embeddings of crops (e.g. CLIP/DINOv2) as a second signal to avoid merging neighbouring identical objects.
-- [ ] Ray-consistency check before merging.
-- [ ] Video: ByteTrack to merge frame-to-frame detections first.
-- [ ] Fused confidence = f(detector score, number of observations, view quality, geometric consistency).
-- [ ] Metrics: duplicates per real object, wrong merges.
+- [ ] Per-class spatial clustering with `dedup.radius_m` (`sign`, `light`, `waste`) + multi-view ray triangulation.
+- [ ] Ray-consistency check (`dedup.use_ray_check: true`) before merging observations.
+- [ ] Preserve `verified` and `corrected` elements from `existing_elements` untouched.
+- [ ] Fused confidence aggregation (detector scores, observation count, geometric consistency, capped at `max_confidence`).
 
 ### Phase 7: Integration and robustness
-- [ ] End-to-end `ml run` on the practice zone → elements JSON → import into the API's PostGIS.
-- [ ] Export test: GeoJSON/CSV generated from the output.
-- [ ] Batch processing with caching (don't recompute images), resumable runs, logs.
-- [ ] Config switch for another zone/country (taxonomy file swap).
-- [ ] Performance check: images/sec on available hardware; downsize or batch if needed.
+- [ ] Connect `dedup` logic to `POST /dedup` and disable mock mode (`service.mock: false`).
+- [ ] Config switch test for another zone/taxonomy file (`configs/taxonomy_pt.yaml`).
+- [ ] Performance check: end-to-end `/infer` + `/dedup` latency in Docker on target hardware.
 
 ### Phase 8: Hackathon-readiness
-- [ ] README with a 5-command quickstart; Docker image tested on a clean machine.
-- [ ] Cheat sheet: how to add a class, swap a model, change the distance method, retrain.
-- [ ] Pre-trained weights saved locally (no dependence on downloads at the event).
-- [ ] Offline fallback dataset + precomputed results for the demo zone (venue network may be unreliable).
-- [ ] Provide the ML team's input for the Portuguese executive summary and PPT: models used, datasets, licences, limitations, replication steps.
-- [ ] Dry-run with teammates: full flow from images to the map.
+- [ ] README with a 5-command quickstart; Docker Compose tested cleanly (`ML_MOCK=false`).
+- [ ] All weights (`rtdetr_balanced_best/`, `*_cls.onnx`, `face.onnx`, `plate.onnx`) saved locally for 100% offline run.
+- [ ] Offline fallback dataset + precomputed `/infer` and `/dedup` JSON results for the Aveiro demo zone.
+- [ ] ML slides/input for the final PPT: architecture, models, datasets, licences (zero-AGPL), and limitations.
+- [ ] Dry-run with teammates: full flow from images → `/infer` → `/dedup` → map.
 
 ---
 
