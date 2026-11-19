@@ -6,10 +6,11 @@ import json
 from collections.abc import Iterator, Mapping, Sequence
 from datetime import date
 
+from sqlalchemy.orm import Session
+
 from app.core.exceptions import InvalidInputError, NotFoundError
 from app.repositories import spatial as spatial_repo
 from app.repositories.spatial import BBox, SpatialTable
-from sqlalchemy.orm import Session
 
 
 def parse_bbox(bbox: str | None) -> BBox | None:

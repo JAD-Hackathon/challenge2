@@ -2,11 +2,12 @@ import math
 import uuid
 from collections.abc import Iterable, Sequence
 
+from sqlalchemy import Select, func, select
+from sqlalchemy.orm import Session, selectinload
+
 from app.database.postgis import LatLon
 from app.models.element import Element, ElementCategory, ElementStatus
 from app.models.observation import Observation
-from sqlalchemy import Select, func, select
-from sqlalchemy.orm import Session, selectinload
 
 METERS_PER_DEGREE = 111_320
 

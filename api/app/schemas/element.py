@@ -2,10 +2,11 @@ import uuid
 from datetime import datetime
 from typing import Any, Self
 
+from pydantic import BaseModel, Field, model_validator
+
 from app.core import taxonomy
 from app.core.exceptions import InvalidInputError
 from app.models.element import ElementCategory, ElementStatus
-from pydantic import BaseModel, Field, model_validator
 
 # Key/value facts about an element, e.g. {"limit": 30} for a speed_limit sign
 Attributes = dict[str, Any]

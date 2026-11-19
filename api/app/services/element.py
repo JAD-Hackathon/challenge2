@@ -1,5 +1,7 @@
 import uuid
 
+from sqlalchemy.orm import Session
+
 from app.core.exceptions import NotFoundError
 from app.database.postgis import point
 from app.models.element import (
@@ -12,7 +14,6 @@ from app.repositories import element as element_repo
 from app.schemas.element import ElementRead, ElementUpdate
 from app.schemas.image import attribution
 from app.services import media
-from sqlalchemy.orm import Session
 
 
 def to_element_read(element: Element) -> ElementRead:

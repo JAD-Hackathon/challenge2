@@ -1,5 +1,9 @@
 from contextlib import asynccontextmanager
 
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
+
 from app.api.deps import SessionDep
 from app.api.router import register_routers
 from app.core.config import settings
@@ -7,9 +11,6 @@ from app.core.exceptions import register_exception_handlers
 from app.database import engine
 from app.database.postgis import create_tables, enable_postgis
 from app.services import media
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from sqlalchemy import text
 
 
 @asynccontextmanager

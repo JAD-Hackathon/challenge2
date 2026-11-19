@@ -1,11 +1,12 @@
 import uuid
 from typing import Annotated
 
+from fastapi import APIRouter, Query
+
 from app.api.deps import SessionDep
 from app.models.element import ElementCategory, ElementStatus
 from app.schemas.element import ElementRead, ElementUpdate
 from app.services import element as element_service
-from fastapi import APIRouter, Query
 
 router = APIRouter(prefix="/elements", tags=["elements"])
 

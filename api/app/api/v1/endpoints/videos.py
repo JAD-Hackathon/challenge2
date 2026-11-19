@@ -1,8 +1,9 @@
+from fastapi import APIRouter
+
 from app.api.deps import SessionDep
 from app.api.uploads import TrackForm, VideoForm, VideoMetaForm, read_video
 from app.schemas.video import VideoResponse
 from app.services import ingest as ingest_service
-from fastapi import APIRouter
 
 router = APIRouter(prefix="/videos", tags=["videos"])
 

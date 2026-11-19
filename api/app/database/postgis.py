@@ -1,8 +1,9 @@
 from typing import NamedTuple
 
-from app.database.base import Base
 from geoalchemy2 import WKTElement
 from sqlalchemy import Engine, text
+
+from app.database.base import Base
 
 # Coordinate order: our code always names lat and lon, so they can't be swapped by position.
 # The lon-first formats (WKT, GeoJSON, ST_MakeEnvelope, the export `bbox`) are only ever

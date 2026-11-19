@@ -13,6 +13,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy.orm import Session
+
 from app.database.postgis import point
 from app.models.image import Image
 from app.repositories import element as element_repo
@@ -30,7 +32,6 @@ from app.services import media, ml_client
 from app.services.dedup import DedupResult, PendingObservations, run_dedup
 from app.services.element import to_element_read
 from app.services.ml_client import MLInputError
-from sqlalchemy.orm import Session
 
 
 def ingest_batch(db: Session, uploads: list[UploadedImage]) -> BatchResponse:

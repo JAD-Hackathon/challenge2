@@ -1,5 +1,6 @@
-from app.api.v1.endpoints import elements, export, images, videos
 from fastapi import APIRouter
+
+from app.api.v1.endpoints import elements, export, images, videos
 
 router = APIRouter(prefix="/v1")
 router.include_router(elements.router)

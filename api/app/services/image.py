@@ -1,10 +1,11 @@
+from sqlalchemy.orm import Session
+
 from app.core.exceptions import NotFoundError
 from app.models.image import Image
 from app.models.observation import Observation
 from app.repositories import image as image_repo
 from app.schemas.image import ImageRead, ObservationRead, attribution
 from app.services import media
-from sqlalchemy.orm import Session
 
 
 def get_image(db: Session, image_id: str) -> ImageRead:

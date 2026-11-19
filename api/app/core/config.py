@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     )
 
     MAX_BATCH_SIZE: int = 20  # images per POST /images request
-    MAX_VIDEO_MB: int = 1024  # biggest video accepted by POST /videos
+    MAX_VIDEO_MB: int = 2048  # biggest video accepted by POST /videos
     # Prefix of image URLs in responses. Use an absolute URL (http://localhost:8000/media)
     # if the browser can't reach the API on the same origin. The path must stay /media.
     MEDIA_URL: str = "/media"

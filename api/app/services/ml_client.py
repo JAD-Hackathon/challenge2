@@ -3,6 +3,8 @@
 from pathlib import Path
 
 import httpx
+from pydantic import BaseModel, ValidationError
+
 from app.core.config import settings
 from app.core.exceptions import AppError
 from app.schemas.ml import (
@@ -14,7 +16,6 @@ from app.schemas.ml import (
 )
 from app.schemas.video import UploadedVideo
 from app.services import media
-from pydantic import BaseModel, ValidationError
 
 
 class MLServiceError(AppError):

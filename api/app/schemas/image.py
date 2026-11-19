@@ -3,9 +3,10 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
+from pydantic import BaseModel, Field
+
 from app.schemas.element import Attributes, ElementRead
 from app.schemas.ml import CameraMeta, Source
-from pydantic import BaseModel, Field
 
 IMAGE_ID_PATTERN = r"^[A-Za-z0-9_-]{1,64}$"  # ML uses it as a file name
 

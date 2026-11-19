@@ -9,6 +9,8 @@ import logging
 import uuid
 from dataclasses import dataclass, field
 
+from sqlalchemy.orm import Session
+
 from app.core import taxonomy
 from app.database.postgis import LatLon, point
 from app.models.element import LOCKED_STATUSES, Element
@@ -16,7 +18,6 @@ from app.models.observation import Observation
 from app.repositories import element as element_repo
 from app.schemas import ml
 from app.services import ml_client
-from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
 

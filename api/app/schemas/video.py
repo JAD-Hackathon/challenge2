@@ -3,9 +3,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import BinaryIO
 
+from pydantic import BaseModel, Field
+
 from app.schemas.image import BatchResponse
 from app.schemas.ml import LocationSource, RoutePoint, VideoInferMeta
-from pydantic import BaseModel, Field
 
 
 def new_sequence_id() -> str:

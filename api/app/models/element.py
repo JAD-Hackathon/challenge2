@@ -3,11 +3,12 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from app.database.base import Base
 from geoalchemy2 import Geometry
 from sqlalchemy import DateTime, Enum, Float, String, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, column_property, mapped_column, relationship
+
+from app.database.base import Base
 
 if TYPE_CHECKING:
     from app.models.observation import Observation

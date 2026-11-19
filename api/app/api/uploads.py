@@ -12,13 +12,14 @@ POST /videos  video:  file (streamed to ML, never read into memory)
 
 from typing import Annotated, Any
 
+from fastapi import File, Form, UploadFile
+from pydantic import TypeAdapter, ValidationError
+
 from app.core.config import settings
 from app.core.exceptions import InvalidInputError, TooLargeError
 from app.schemas.image import ImageMeta, UploadedImage
 from app.schemas.video import UploadedVideo, VideoMeta
 from app.services import street_view
-from fastapi import File, Form, UploadFile
-from pydantic import TypeAdapter, ValidationError
 
 ImagesForm = Annotated[
     list[UploadFile],
@@ -33,9 +34,11 @@ MetasForm = Annotated[
         "ImageMeta (lat, lon, heading required) or a source record: "
         '{"mapillary": {...}} / {"kartaview": {...}} (other keys override the record).',
         examples=[
-            '[{"lat": 40.6412, "lon": -8.6538, "heading": 92.5}, '
-            '{"mapillary": {"id": "123", "computed_geometry": {"type": "Point", '
-            '"coordinates": [-8.6538, 40.6412]}, "computed_compass_angle": 92.5}}]'
+            (
+                '[{"lat": 40.6412, "lon": -8.6538, "heading": 92.5}, '
+                '{"mapillary": {"id": "123", "computed_geometry": {"type": "Point", '
+                '"coordinates": [-8.6538, 40.6412]}, "computed_compass_angle": 92.5}}]'
+            )
         ],
     ),
 ]

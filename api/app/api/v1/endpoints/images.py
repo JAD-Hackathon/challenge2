@@ -1,9 +1,10 @@
+from fastapi import APIRouter
+
 from app.api.deps import SessionDep
 from app.api.uploads import ImagesForm, MetasForm, read_batch
 from app.schemas.image import BatchResponse, ImageRead
 from app.services import image as image_service
 from app.services import ingest as ingest_service
-from fastapi import APIRouter
 
 router = APIRouter(prefix="/images", tags=["images"])
 

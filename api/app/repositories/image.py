@@ -1,6 +1,7 @@
-from app.models.image import Image
 from sqlalchemy import exists, select
 from sqlalchemy.orm import Session, selectinload
+
+from app.models.image import Image
 
 
 def image_exists(db: Session, image_id: str) -> bool:
