@@ -273,8 +273,9 @@ changes `verified`, `corrected` or `rejected` elements; new images of them are o
 - `image_id` is chosen by the API (ML only uses it as the file name): `up_<hex>` for uploaded
   images, `<sequence_id>_<frame_index>` for video frames (`vid_<hex>_0000`), `mly_<id>` /
   `kv_<id>` for Mapillary / KartaView. The web may send its own `image_id` for images.
-- Observation and element ids are created by ML (UUIDs) and stored as they are, so they match
-  ML's logs. If ML ever sends something that isn't a UUID, the request fails with 502.
+- Observation and element ids are created by ML and stored as they are, so they match ML's
+  logs. Observation ids are plain strings (ML sends short hex ids); element ids must be UUIDs,
+  and if ML ever sends an element id that isn't one, the request fails with 502.
 - ML's mock derives observation ids from the `image_id`, so an `image_id` must reach ML only
   once. The API makes sure of that: an id that was already processed is skipped (`duplicate`).
 

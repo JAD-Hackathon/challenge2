@@ -117,7 +117,7 @@ class MLStub:
 
         def detection(type_: str, attributes=None) -> ml.Observation:
             return ml.Observation(
-                observation_id=uuid.UUID(int=rng.getrandbits(128)),
+                observation_id=str(uuid.UUID(int=rng.getrandbits(128))),
                 type=type_, score=0.9, bbox_xyxy=[10, 10, 50, 50], bearing_deg=meta.heading,
                 est_lat=meta.lat + 0.0001, est_lon=meta.lon, uncertainty_m=2.0,
                 attributes=attributes,

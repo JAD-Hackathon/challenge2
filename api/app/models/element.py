@@ -79,7 +79,7 @@ class Element(Base):
 
     # ML's pick for the best view of the element; its image + bbox are what the UI shows.
     # No FK on purpose: observations already point here (avoids a circular FK).
-    best_observation_id: Mapped[uuid.UUID | None] = mapped_column(default=None)
+    best_observation_id: Mapped[str | None] = mapped_column(String(64), default=None)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

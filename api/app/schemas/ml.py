@@ -1,7 +1,8 @@
 """Mirror of the ML service contract (ml/docs/data_contract.md). Keep in sync with ml/src/service/schemas.py.
 
 IDs: image_id is chosen by the API (ML only uses it as a file name). observation_id and
-element_id are created by ML and must be UUIDs (contract rule); the API stores them as they are.
+element_id are created by ML and stored as they are. observation_id is any string (ML sends
+short hex ids); element_id must be a UUID (contract rule).
 """
 
 import uuid
@@ -26,7 +27,7 @@ class CameraMeta(BaseModel):
 
 
 class Observation(BaseModel):
-    observation_id: uuid.UUID
+    observation_id: str
     type: str  # e.g. "sign.stop"
     score: float = Field(ge=0, le=1)
     bbox_xyxy: list[int] = Field(min_length=4, max_length=4)
@@ -50,8 +51,8 @@ class MLElement(BaseModel):
     lat: float
     lon: float
     confidence: float = Field(ge=0, le=1)
-    observation_ids: list[uuid.UUID]
-    best_observation_id: uuid.UUID
+    observation_ids: list[str]
+    best_observation_id: str
     status: Literal["auto", "verified", "corrected", "rejected"] = "auto"
     attributes: dict[str, Any] | None = (
         None  # optional extra, see Observation.attributes
@@ -66,7 +67,7 @@ class DedupRequest(BaseModel):
 
 class DedupResponse(BaseModel):
     elements: list[MLElement]
-    unassigned_observation_ids: list[uuid.UUID] = []
+    unassigned_observation_ids: list[str] = []
     removed_element_ids: list[uuid.UUID] = []
 
 

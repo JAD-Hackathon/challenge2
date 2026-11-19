@@ -19,7 +19,7 @@ class Observation(Base):
 
     __tablename__ = "observations"
 
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # ML's observation_id
     image_id: Mapped[str] = mapped_column(
         ForeignKey("images.id", ondelete="CASCADE"), index=True
     )

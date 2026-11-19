@@ -63,7 +63,7 @@ class MockStore:
         self.lock = threading.RLock()  # sync endpoints run in a thread pool
         self._elements: dict[uuid.UUID, ElementRead] = {}
         self._best_observation: dict[
-            uuid.UUID, uuid.UUID
+            uuid.UUID, str
         ] = {}  # element id -> observation id
         self._images: dict[str, ImageRead] = {}
 
@@ -95,7 +95,7 @@ class MockStore:
             return self._elements[element_id]
 
     def save_element(
-        self, element: ElementRead, best_observation_id: uuid.UUID | None = None
+        self, element: ElementRead, best_observation_id: str | None = None
     ) -> None:
         """Insert or replace. Elements are treated as immutable: change them with model_copy."""
         with self.lock:
@@ -103,7 +103,7 @@ class MockStore:
             if best_observation_id:
                 self._best_observation[element.id] = best_observation_id
 
-    def best_observation_id(self, element_id: uuid.UUID) -> uuid.UUID | None:
+    def best_observation_id(self, element_id: uuid.UUID) -> str | None:
         with self.lock:
             return self._best_observation.get(element_id)
 
@@ -172,7 +172,7 @@ class MockStore:
                 created_at=seeded_at,
             )
             observation = ObservationRead(
-                id=uuid.uuid5(element.id, "observation"),  # one view per seed element
+                id=str(uuid.uuid5(element.id, "observation")),  # one view per seed element
                 element_id=element.id,
                 type=el["type"],
                 score=element.confidence,

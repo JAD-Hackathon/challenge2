@@ -109,7 +109,7 @@ class _Collected:
 
     def __init__(self) -> None:
         self.images: list[ImageRead] = []
-        self.detections: dict[uuid.UUID, tuple[ml.Observation, ImageRead]] = {}
+        self.detections: dict[str, tuple[ml.Observation, ImageRead]] = {}
         self.cameras: list[ml.CameraMeta] = []
 
     def add(
@@ -184,7 +184,7 @@ def _processed(
 
 
 def _element(
-    found: ml.MLElement, detections: dict[uuid.UUID, tuple[ml.Observation, ImageRead]]
+    found: ml.MLElement, detections: dict[str, tuple[ml.Observation, ImageRead]]
 ) -> ElementRead | None:
     """ML /dedup element -> catalogue element (None for classes the API doesn't know)."""
     best, image = detections[found.best_observation_id]

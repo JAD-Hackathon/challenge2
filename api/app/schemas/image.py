@@ -103,7 +103,7 @@ class BatchResponse(BaseModel):
 
 
 class ObservationRead(BaseModel):
-    id: uuid.UUID
+    id: str
     element_id: uuid.UUID | None
     type: str = Field(examples=["sign.speed_limit"])
     score: float

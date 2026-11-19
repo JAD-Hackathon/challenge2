@@ -28,7 +28,7 @@ SEARCH_MARGIN_M = 50  # existing elements this close to new detections are sent 
 class PendingObservations:
     """Observations added to the session that still have to go through /dedup."""
 
-    rows: dict[uuid.UUID, Observation] = field(default_factory=dict)
+    rows: dict[str, Observation] = field(default_factory=dict)
     detections: list[ml.Observation] = field(default_factory=list)
     cameras: dict[str, ml.CameraMeta] = field(default_factory=dict)
 

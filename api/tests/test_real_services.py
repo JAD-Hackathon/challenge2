@@ -214,7 +214,7 @@ def test_dedup_never_changes_human_decisions(monkeypatch):
     pending = dedup.PendingObservations()
     camera = ml.CameraMeta(image_id="img", lat=40.64, lon=-8.65, heading=0)
     new_view = pending.add(
-        db, ml.Observation(observation_id=uuid.uuid4(), type="sign.yield", score=0.9,
+        db, ml.Observation(observation_id=str(uuid.uuid4()), type="sign.yield", score=0.9,
                            bbox_xyxy=[1, 1, 5, 5]), camera,
     )  # fmt: skip
     sent = []
@@ -253,7 +253,7 @@ def test_dedup_skips_unknown_classes(monkeypatch, ml_stub):
     pending = dedup.PendingObservations()
     row = pending.add(
         db,
-        ml.Observation(observation_id=uuid.uuid4(), type="bench.wooden", score=0.9,
+        ml.Observation(observation_id=str(uuid.uuid4()), type="bench.wooden", score=0.9,
                        bbox_xyxy=[1, 1, 5, 5], est_lat=40.64, est_lon=-8.65),
         ml.CameraMeta(image_id="i", lat=40.64, lon=-8.65, heading=0),
     )  # fmt: skip
@@ -343,13 +343,20 @@ def test_ml_errors_are_split_by_status():
         )
 
 
-def test_ml_ids_must_be_uuids():
-    """Contract: observation/element ids are UUIDs. Anything else is ML breaking it (502)."""
+def test_ml_ids():
+    """Observation ids are any string (ML sends short hex ids); element ids must be UUIDs (502)."""
     body = {"image_id": "x", "blurred_image_path": "images/x.jpg", "observations": [
-        {"observation_id": "a1b2", "type": "sign.stop", "score": 0.9, "bbox_xyxy": [1, 1, 2, 2]}
+        {"observation_id": "a1b2c3d4e5f6", "type": "sign.stop", "score": 0.9, "bbox_xyxy": [1, 1, 2, 2]}
+    ]}  # fmt: skip
+    parsed = ml_client._parse(ml.InferResponse, httpx.Response(200, json=body))
+    assert parsed.observations[0].observation_id == "a1b2c3d4e5f6"
+
+    body = {"elements": [
+        {"element_id": "a1b2", "type": "sign.stop", "lat": 1, "lon": 1, "confidence": 0.9,
+         "observation_ids": ["a1b2c3d4e5f6"], "best_observation_id": "a1b2c3d4e5f6"}
     ]}  # fmt: skip
     with pytest.raises(MLServiceError, match="breaks the contract"):
-        ml_client._parse(ml.InferResponse, httpx.Response(200, json=body))
+        ml_client._parse(ml.DedupResponse, httpx.Response(200, json=body))
 
 
 def test_taxonomy():
@@ -374,7 +381,7 @@ def test_dedup_search_points():
     pending = dedup.PendingObservations()
     for est_lat, est_lon in [(40.6401, -8.6501), (None, None)]:
         detection = ml.Observation(
-            observation_id=uuid.uuid4(),
+            observation_id=str(uuid.uuid4()),
             type="sign.stop",
             score=0.9,
             bbox_xyxy=[1, 1, 2, 2],
