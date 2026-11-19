@@ -68,7 +68,7 @@ def element(status=ElementStatus.AUTO, type_="stop") -> Element:
     )  # fmt: skip
     # computed by PostGIS / server defaults for real
     e.latitude, e.longitude, e.created_at, e.updated_at = 40.64, -8.65, NOW, NOW
-    e.observations = [Observation(id=uuid.uuid4(), type=f"sign.{type_}", score=0.8)]
+    e.observations = [Observation(id=str(uuid.uuid4()), type=f"sign.{type_}", score=0.8)]
     return e
 
 
