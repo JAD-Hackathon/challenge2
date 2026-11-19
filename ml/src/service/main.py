@@ -1,11 +1,22 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+
 from src.config import get_settings
 from src.service.exceptions import APIError
 from src.service.routes import routers
+from src.service.routes.infer_routes import _get_pipeline
 
 
-app = FastAPI(title="Ctrl+F Aveiro ML service")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if not get_settings().service.mock:
+        _get_pipeline()
+    yield
+
+
+app = FastAPI(title="Ctrl+F Aveiro ML service", lifespan=lifespan)
 for router in routers:
     app.include_router(router)
 

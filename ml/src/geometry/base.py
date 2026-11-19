@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Literal
 
+import logging
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.config import GeometryConfig, Method
@@ -14,6 +15,8 @@ from src.geometry.utils.camera import (
 from src.taxonomy import ClassSpec
 
 BBox = tuple[float, float, float, float]
+
+logger = logging.getLogger(__name__)
 
 
 class _GeometryModel(BaseModel):
@@ -45,6 +48,24 @@ class CameraFrame(_GeometryModel):
             )
         return self
 
+    @staticmethod
+    def normalize_camera_type(
+        raw_type: str | None,
+    ) -> Literal["perspective", "equirectangular"] | None:
+        """Map incoming metadata camera_type strings to supported projection modes."""
+        if raw_type is None:
+            return None
+        normalized = raw_type.strip().lower()
+        if normalized in ("equirectangular", "panorama", "spherical", "360"):
+            return "equirectangular"
+        if normalized in ("perspective", "pinhole", "flat"):
+            return "perspective"
+        logger.warning(
+            "Unknown camera_type %r in metadata; falling back to config default.",
+            raw_type,
+        )
+        return None
+
     @classmethod
     def from_meta(
         cls,
@@ -56,10 +77,11 @@ class CameraFrame(_GeometryModel):
         image_height: int,
         cfg: GeometryConfig,
         fov: float | None = None,
-        camera_type: Literal["perspective", "equirectangular"] | None = None,
+        camera_type: str | None = None,
         camera_height_m: float | None = None,
     ) -> "CameraFrame":
-        """Build a CameraFrame by falling back to GeometryConfig defaults for None values."""
+        """Build a CameraFrame by normalizing metadata and falling back to config defaults."""
+        camera_type = cls.normalize_camera_type(camera_type)
         resolved_type = (
             camera_type if camera_type is not None else cfg.default_camera_type
         )

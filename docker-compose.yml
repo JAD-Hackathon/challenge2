@@ -15,15 +15,26 @@ services:
       retries: 10
 
   ml:
-    build: ./ml
+    build:
+      context: ./ml
+      args:
+        TORCH_VARIANT: ${TORCH_VARIANT:-cpu}
     environment:
       ML_SHARED_DIR: /data
-      ML_MOCK: "true" # switch off once the real models are in
+      ML_MOCK: ${ML_MOCK:-true}
+      ML_DEVICE: ${ML_DEVICE:-auto}
     ports:
-      - "8001:8000" # lets you run the API outside Docker against it
+      - "8001:8000"
     volumes:
       - shared:/data
-      - ./ml/weights:/ml/weights # weights stay out of the image
+      - ./ml/weights:/ml/weights:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 25s
+      retries: 3
+    restart: unless-stopped
 
   api:
     build: ./api
