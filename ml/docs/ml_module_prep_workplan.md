@@ -151,16 +151,16 @@ Phases are ordered by priority, not fixed dates. Adjust to the number of days be
 
 ### Phase 5: Geometry and geolocation (all options)
 Implement each behind a common `DistanceEstimator` interface returning `(distance_m, uncertainty_m)`.
-- [ ] `camera.py`: intrinsics from FOV, bbox → bearing, equirectangular panorama → perspective crops with known heading/pitch/FOV.
-- [ ] `geo.py`: local ENU projection with `pyproj`; destination point from lat/lon + bearing + distance.
-- [ ] **SizePriorEstimator**: table of standard object heights (signs, lamp heights, container sizes) in config.
-- [ ] **GroundPlaneEstimator**: camera height + base of bbox; flag when the base is occluded or the bbox is cropped at the image edge. Use only up to `ground_plane_max_distance_m` (~15 m) and add the height/pitch error to `uncertainty_m`.
-- [ ] **DepthEstimator**: wrappers for Depth Anything V2, Metric3D/UniDepth; read depth at the bbox (median of a robust region); optional per-model scale calibration against ground truth.
-- [ ] **Triangulation**: least-squares intersection of 2+ rays, with outlier rejection (RANSAC) and uncertainty.
-- [ ] **Fusion strategy** (config): choose single method, or weighted combination by uncertainty, e.g. size prior + ground plane + depth, then refine with triangulation within clusters.
-- [ ] Road-geometry sanity check: pull OSM road lines (Overpass); reject or snap objects that fall in the middle of the carriageway.
-- [ ] **Calibrate** default camera height (and a pitch offset) per source on the ground truth (small grid search).
-- [ ] **Benchmark script**: run every method on the ground-truth set and output median/90th-percentile error in metres, per category. This decides the default method at the hackathon.
+- [✓] `camera.py`: intrinsics from FOV, bbox → bearing, equirectangular panorama → perspective crops with known heading/pitch/FOV.
+- [✓] `geo.py`: local ENU projection with `pyproj`; destination point from lat/lon + bearing + distance.
+- [✓] **SizePriorEstimator**: table of standard object heights (signs, lamp heights, container sizes) in config.
+- [✓] **GroundPlaneEstimator**: camera height + base of bbox; flag when the base is occluded or the bbox is cropped at the image edge. Use only up to `ground_plane_max_distance_m` (~15 m) and add the height/pitch error to `uncertainty_m`.
+- [✓] **DepthEstimator**: wrappers for Depth Anything V2, Metric3D/UniDepth; read depth at the bbox (median of a robust region); optional per-model scale calibration against ground truth.
+- [✓] **Triangulation**: least-squares intersection of 2+ rays, with outlier rejection (RANSAC) and uncertainty.
+- [✓] **Fusion strategy** (config): choose single method, or weighted combination by uncertainty, e.g. size prior + ground plane + depth, then refine with triangulation within clusters.
+- [✓] Road-geometry sanity check: pull OSM road lines (Overpass); reject or snap objects that fall in the middle of the carriageway.
+- [✓] **Calibrate** default camera height (and a pitch offset) per source on the ground truth (small grid search).
+- [✓] **Benchmark script**: run every method on the ground-truth set and output median/90th-percentile error in metres, per category. This decides the default method at the hackathon.
 
 ### Phase 6: Deduplication and confidence
 - [ ] Per-class clustering (DBSCAN/HDBSCAN) with class-specific radii in config.

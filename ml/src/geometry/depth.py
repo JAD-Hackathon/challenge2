@@ -60,7 +60,7 @@ class ONNXDepthProvider:
 
         depth_small = np.squeeze(out).astype(np.float32)
         depth = cv2.resize(
-            depth_small, dsize=(orig_h, orig_w), interpolation=cv2.INTER_LINEAR
+            depth_small, dsize=(orig_w, orig_h), interpolation=cv2.INTER_LINEAR
         )
         return depth
 

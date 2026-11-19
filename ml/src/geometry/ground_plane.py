@@ -39,14 +39,14 @@ class GroundPlaneEstimator(DistanceEstimator):
             return None
 
         x0, y0, x1, y1 = bbox_xyxy
-        if (x1 - x0) < self.cfg.min_box_px or (y1 - y0) - self.cfg.min_box_px:
+        if (x1 - x0) < self.cfg.min_box_px or (y1 - y0) < self.cfg.min_box_px:
             return None
 
         if y1 >= frame.image_height - self.edge_margin_px:
             return None
 
         if frame.camera_type == "equirectangular":
-            depression_deg = pano_elevation_deg(y1, frame.image_height)
+            elevation_deg = pano_elevation_deg(y1, frame.image_height)
             distance_m = pano_ground_distance(
                 camera_height_m=frame.camera_height_m,
                 cy_base=y1,
@@ -54,7 +54,7 @@ class GroundPlaneEstimator(DistanceEstimator):
                 min_depression_deg=self.min_depression_deg,
             )
         else:
-            depression_deg = perspective_elevation_deg(
+            elevation_deg = perspective_elevation_deg(
                 y1, frame.image_width, frame.image_height, frame.fov_deg
             )
             distance_m = perspective_ground_distance(
@@ -76,7 +76,7 @@ class GroundPlaneEstimator(DistanceEstimator):
 
         uncertainty_m = self._propagate_uncertainty(
             camera_height_m=frame.camera_height_m,
-            depression_deg=depression_deg,
+            depression_deg=-elevation_deg,
         )
 
         return DistanceEstimation(
@@ -97,7 +97,7 @@ class GroundPlaneEstimator(DistanceEstimator):
         sin_theta = math.sin(theta)
         pitch_sigma_rad = math.radians(self.cfg.pitch_sigma_deg)
 
-        sigma_height = self.cfg.pitch_sigma_deg / tan_theta
+        sigma_height = self.cfg.camera_height_sigma_m / tan_theta
         sigma_pitch = (camera_height_m * pitch_sigma_rad) / sin_theta**2
         sigma_d = math.hypot(sigma_height, sigma_pitch)
 

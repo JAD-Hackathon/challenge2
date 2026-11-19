@@ -25,13 +25,13 @@ def project_point(
     """
     if distance_m == 0:
         return lat, lon
-    dets_lat, dets_lon, _ = _WGS84_GEOD.fwd(lat, lon, bearing_deg, distance_m)
-    return float(dets_lat), float(dets_lon)
+    dest_lon, dest_lat, _ = _WGS84_GEOD.fwd(lon, lat, bearing_deg, distance_m)
+    return float(dest_lat), float(dest_lon)
 
 
 def geodesic_distance_m(lat0: float, lon0: float, lat1: float, lon1: float) -> float:
     """Compute exact ellipsoidal distance in metres between two WGS84 points."""
-    _, _, dist_m = _WGS84_GEOD.inv(lat0, lon0, lat1, lon1)
+    _, _, dist_m = _WGS84_GEOD.inv(lon0, lat0, lon1, lat1)
     return float(dist_m)
 
 
@@ -67,10 +67,10 @@ class LocalENU:
 
     def to_xy(self, lat: float, lon: float) -> tuple[float, float]:
         """Convert WGS84 (lat, lon) to local metric (east_m, north_m)."""
-        east_m, north_m = self.to_local.transform(lat, lon)
+        east_m, north_m = self.to_local.transform(lon, lat)
         return float(east_m), float(north_m)
 
     def to_latlon(self, east_m: float, north_m: float) -> tuple[float, float]:
         """Convert local metric (east_m, north_m) back to WGS84 (lat, lon)."""
-        lat, lon = self.to_wgs84.transform(east_m, north_m)
+        lon, lat = self.to_wgs84.transform(east_m, north_m)
         return float(lat), float(lon)
