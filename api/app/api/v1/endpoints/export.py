@@ -22,21 +22,6 @@ def attachment(filename: str) -> dict[str, str]:
     return {"Content-Disposition": f'attachment; filename="{filename}"'}
 
 
-@router.get("/layers")
-def list_layers(db: SessionDep):
-    """Tables that can be exported (every table with a PostGIS geometry column)."""
-    return [
-        {
-            "schema": t.schema,
-            "table": t.table,
-            "geometry_column": t.geom_column,
-            "geometry_type": t.geometry_type,
-            "srid": t.srid,
-        }
-        for t in export_service.list_layers(db)
-    ]
-
-
 @router.get("/{table}.geojson")
 def export_geojson(
     db: SessionDep, table: str, bbox: BBoxQuery = None, schema: SchemaQuery = "public"
