@@ -1,4 +1,4 @@
-from src.geometry.utils.helpers import BBox
+from src.geometry.base import BBox
 
 
 def xyxy_to_yolo(

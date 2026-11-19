@@ -1,11 +1,10 @@
-from collections.abc import Iterator
 import math
+from collections.abc import Iterator
+from src.geometry.base import BBox
 
 METERS_PER_DEGREE = 111_320
 EARTH_RADIUS_M = 6_371_000
 # source: https://mapryx.geoforger.com/tools/meter-to-degree-converter
-
-BBox = tuple[float, float, float, float]
 
 
 def bbox_center(bbox: BBox) -> tuple[float, float]:

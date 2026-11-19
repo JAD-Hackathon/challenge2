@@ -7,7 +7,8 @@ from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 
-from src.geometry.utils.helpers import BBox, parse_bbox, tile_bbox
+from src.geometry.base import BBox
+from src.geometry.utils.helpers import parse_bbox, tile_bbox
 from src.io.common import (
     ImageRecord,
     add_spread_args,

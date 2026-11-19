@@ -11,8 +11,9 @@ from src.geometry.camera import (
     pano_bearing,
     perspective_bearing,
 )
-from src.geometry.utils.helpers import BBox
 from src.taxonomy import ClassSpec
+
+BBox = tuple[float, float, float, float]
 
 
 class _GeometryModel(BaseModel):

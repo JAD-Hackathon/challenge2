@@ -7,8 +7,8 @@ from src.geometry.base import (
     CameraFrame,
     DistanceEstimation,
     DistanceEstimator,
+    BBox,
 )
-from src.geometry.utils.helpers import BBox
 from src.taxonomy import ClassSpec
 
 

@@ -8,8 +8,8 @@ from collections import Counter
 from collections.abc import Iterator
 from datetime import datetime, timezone
 
+from src.geometry.base import BBox
 from src.geometry.utils.helpers import (
-    BBox,
     bbox_center,
     bbox_contains,
     bbox_half_diagonal_m,
