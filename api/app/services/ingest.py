@@ -44,8 +44,19 @@ def ingest_batch(db: Session, uploads: list[UploadedImage]) -> BatchResponse:
 def ingest_video(db: Session, video: UploadedVideo) -> VideoResponse:
     with _all_or_nothing(db) as work:
         result = ml_client.infer_video(video, new_sequence_id())
+        print(
+            f"[INGEST] video {result.sequence_id}: {len(result.frames)} frames, "
+            f"location_source={result.location_source}",
+            flush=True,
+        )
         results = []
         for index, frame in enumerate(result.frames):
+            print(
+                f"[INGEST]   frame {frame.camera.frame_index} ({frame.camera.image_id}) "
+                f"at ({frame.camera.lat}, {frame.camera.lon}): "
+                f"{[(o.type, round(o.score, 2)) for o in frame.observations]}",
+                flush=True,
+            )
             filename = video.frame_filename(frame.camera.frame_index)
             base = {
                 "index": index,
@@ -119,8 +130,15 @@ def _infer_one(db: Session, work: _Work, upload: UploadedImage) -> ImageResult:
             upload.content, camera, upload.content_type or "image/jpeg"
         )
     except MLInputError as e:
+        print(f"[INGEST] image {image_id}: ML refused it: {e.detail}", flush=True)
         return ImageResult(**base, status=ImageStatus.FAILED, error=e.detail)
 
+    print(
+        f"[INGEST] image {image_id}: {len(inferred.observations)} observations "
+        f"{[(o.type, round(o.score, 2)) for o in inferred.observations]}, "
+        f"blurred -> {inferred.blurred_image_path}",
+        flush=True,
+    )
     _save_image(
         db, work, camera, inferred.blurred_image_path, inferred.observations,
         filename=upload.filename, author=meta.author, license=meta.license,

@@ -109,14 +109,35 @@ def _apply(
     db: Session, response: ml.DedupResponse, pending: PendingObservations
 ) -> DedupResult:
     touched: dict[uuid.UUID, Element] = {}
+    print(
+        f"\n[DEDUP] ML returned {len(response.elements)} elements, "
+        f"{len(response.unassigned_observation_ids)} unassigned observations, "
+        f"{len(response.removed_element_ids)} removed elements",
+        flush=True,
+    )
+    if response.unassigned_observation_ids:
+        print(
+            f"[DEDUP] unassigned observations: {response.unassigned_observation_ids}",
+            flush=True,
+        )
 
     for found in response.elements:
         new_rows = [pending.rows[i] for i in found.observation_ids if i in pending.rows]
         if not new_rows:
+            print(
+                f"[DEDUP] element {found.element_id} ({found.type}): "
+                "no new observations, skipped",
+                flush=True,
+            )
             continue  # nothing new for this element
 
         element = db.get(Element, found.element_id)
         if element is not None and element.status in LOCKED_STATUSES:
+            print(
+                f"[DEDUP] element {found.element_id} is {element.status.value} (locked): "
+                f"linked {len(new_rows)} new observations, nothing else changed",
+                flush=True,
+            )
             # New view of something a human already decided on: link it, change nothing else
             for row in new_rows:
                 row.element_id = element.id
@@ -126,11 +147,23 @@ def _apply(
         try:
             category, type_ = taxonomy.split_class(found.type)
         except ValueError:
+            print(
+                f"[DEDUP] element {found.element_id}: unknown class {found.type!r}, skipped",
+                flush=True,
+            )
             log.warning(
                 "ML returned unknown class %r, observations left unassigned", found.type
             )
             continue
 
+        print(
+            f"[DEDUP] element {found.element_id}: "
+            f"{'CREATE' if element is None else 'UPDATE'} {found.type} "
+            f"at ({found.lat}, {found.lon}) conf={found.confidence} "
+            f"new_obs={len(new_rows)}/{len(found.observation_ids)} "
+            f"attributes={found.attributes}",
+            flush=True,
+        )
         if element is None:
             element = Element(id=found.element_id)
             db.add(element)
@@ -159,7 +192,12 @@ def _apply(
             or element.status in LOCKED_STATUSES
             or element_id in touched
         ):
+            print(
+                f"[DEDUP] remove {element_id}: ignored (missing, locked or just updated)",
+                flush=True,
+            )
             continue
+        print(f"[DEDUP] remove {element_id}: deleted", flush=True)
         db.delete(element)  # its observations are kept, unassigned
         removed.append(element_id)
 

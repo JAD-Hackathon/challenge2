@@ -1,5 +1,6 @@
 """HTTP client for the ML service (POST /infer, POST /dedup, POST /infer-video)."""
 
+import json
 from pathlib import Path
 
 import httpx
@@ -55,12 +56,24 @@ def _raise_for_error(response: httpx.Response, path: str = "") -> None:
     raise (MLInputError if response.is_client_error else MLServiceError)(detail)
 
 
+def _print_response(path: str, response: httpx.Response) -> None:
+    """DEBUG: show exactly what ML returned (status + body, pretty-printed if JSON)."""
+    print(f"\n[ML] POST {path} -> HTTP {response.status_code}", flush=True)
+    try:
+        body = json.dumps(response.json(), indent=2, ensure_ascii=False)
+    except ValueError:
+        body = response.text
+    print(f"[ML] response body:\n{body}", flush=True)
+
+
 def _post(path: str, timeout: float | None = None, **kwargs) -> httpx.Response:
     try:
         with _client(timeout or settings.ML_TIMEOUT_S) as client:
             response = client.post(path, **kwargs)
     except httpx.HTTPError as e:
+        print(f"\n[ML] POST {path} -> unreachable: {e!r}", flush=True)
         raise MLServiceError(f"ML service unreachable: {e}") from e
+    _print_response(path, response)
     _raise_for_error(response, path)
     return response
 
@@ -69,6 +82,7 @@ def _parse[M: BaseModel](model: type[M], response: httpx.Response) -> M:
     try:
         return model.model_validate_json(response.content)
     except ValidationError as e:  # e.g. an id that isn't a UUID
+        print(f"[ML] response does not match {model.__name__}:\n{e}", flush=True)
         raise MLServiceError(
             f"ML response breaks the contract: {e.errors()[0]['msg']}"
         ) from e
@@ -77,6 +91,11 @@ def _parse[M: BaseModel](model: type[M], response: httpx.Response) -> M:
 def infer(
     image: bytes, meta: CameraMeta, content_type: str = "image/jpeg"
 ) -> InferResponse:
+    print(
+        f"\n[ML] /infer request: image_id={meta.image_id} lat={meta.lat} lon={meta.lon} "
+        f"heading={meta.heading} ({len(image)} bytes, {content_type})",
+        flush=True,
+    )
     response = _post(
         "/infer",
         files={"image": (f"{meta.image_id}.jpg", image, content_type)},
@@ -86,6 +105,11 @@ def infer(
 
 
 def dedup(request: DedupRequest) -> DedupResponse:
+    print(
+        f"\n[ML] /dedup request: {len(request.observations)} observations, "
+        f"{len(request.images)} images, {len(request.existing_elements)} existing elements",
+        flush=True,
+    )
     response = _post("/dedup", json=request.model_dump(mode="json"))
     return _parse(DedupResponse, response)
 
@@ -105,6 +129,11 @@ def infer_video(video: UploadedVideo, sequence_id: str) -> InferVideoResponse:
     }
     if video.track is not None:
         files["track"] = ("track.gpx", video.track, "application/gpx+xml")
+    print(
+        f"\n[ML] /infer-video request: sequence_id={sequence_id} file={video.filename!r} "
+        f"track={'yes' if video.track is not None else 'no'}",
+        flush=True,
+    )
     response = _post(
         "/infer-video",
         timeout=settings.ML_VIDEO_TIMEOUT_S,
