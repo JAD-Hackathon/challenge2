@@ -45,6 +45,19 @@ Executive summary of architectural, data, modeling, and compliance decisions acr
 
 ---
 
-## 6. Conclusion & Team Handoff
-* **Status:** Stage-1 detection, Stage-2 fine-grained classification, and GDPR privacy modules are implemented, benchmarked, unit-tested (`pytest`), and license-audited.
+## 6. 3D Geospatial Localization & Triangulation (`src/geometry/`)
+* **Decision:** Estimate real-world WGS84 coordinates (`est_lat`, `est_lon`) and 1-sigma positional uncertainty (`uncertainty_m`) purely offline without external runtime APIs, combining physical priors, projective ground-plane geometry, and multi-view ray triangulation.
+* **Implementation:**
+  * **Camera Optics & Bearing (`camera.py`, `base.py`):** Unified `CameraFrame` abstraction supporting both `perspective` (pinhole focal length from `hfov_deg`) and `equirectangular` ($360^\circ$ spherical panoramas) projections.
+  * **Single-View Distance Estimators (`size_prior.py`, `ground_plane.py`, `depth.py`):**
+    * `SizePriorEstimator`: Computes distance from apparent pixel width/height and taxonomy priors (`configs/taxonomy_pt.yaml`), rejecting border-truncated and sub-threshold (`< min_box_px`) detections.
+    * `GroundPlaneEstimator`: Intersects bottom-center rays with flat ground for `ground: true` assets (`light.*`, `waste.*`, including size-less `waste.underground`) up to `ground_plane_max_distance_m: 15.0 m`, propagating camera height and pitch uncertainties.
+    * `DepthEstimator`: Optional pluggable ONNX monocular depth backend sampling inner-bbox median depth.
+  * **Inverse-Variance Fusion & WGS84 Projection (`localizer.py`, `geo.py`):** Combines valid single-view estimates via inverse-variance weighting ($w_i = 1/\sigma_i^2$), projects coordinates onto the WGS84 ellipsoid via `pyproj.Geod`, and propagates radial, bearing, and GPS uncertainties into total `uncertainty_m`.
+  * **Multi-View Triangulation (`triangulation.py`):** Refines clustered cross-frame observations in local tangent metric coordinates (`LocalENU`) via weighted least-squares ray intersection with parallax angle (`min_angle_deg`), cheirality, and residual checks.
+
+---
+
+## 7. Conclusion & Team Handoff
+* **Status:** Stage-1 detection, Stage-2 fine-grained classification, GDPR privacy, and 3D geospatial localization modules are implemented, unit-tested (`pytest`), and license-audited.
 * **Weights Setup:** Place `rtdetr_balanced_best/`, `sign_cls.onnx`, `waste_cls.onnx`, `lighting_cls.onnx`, `face.onnx`, and `plate.onnx` in `ml/weights/` locally or mount at container runtime.
