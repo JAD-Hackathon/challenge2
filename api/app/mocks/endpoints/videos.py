@@ -10,5 +10,7 @@ router = APIRouter(prefix="/videos", tags=["videos"])
 
 @router.post("", response_model=VideoResponse)
 @mirrors(real.upload_video)
-def upload_video(video: VideoForm, track: TrackForm, meta: VideoMetaForm = "{}"):
+def upload_video(
+    video: VideoForm, track: TrackForm = None, meta: VideoMetaForm = "{}"
+):
     return service.ingest_video(read_video(video, track, meta))

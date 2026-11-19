@@ -64,7 +64,10 @@ def ingest_video(db: Session, video: UploadedVideo) -> VideoResponse:
             )
         dedup = run_dedup(db, work.pending)
     return VideoResponse(
-        images=results, sequence_id=result.sequence_id, **_changes(db, dedup)
+        images=results,
+        sequence_id=result.sequence_id,
+        location_source=result.location_source,
+        **_changes(db, dedup),
     )
 
 

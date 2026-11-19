@@ -49,13 +49,14 @@ class MLStub:
     ids derived from image_id / first observation, blurred copy written to the shared folder.
     Every image gets a speed_limit sign ({"limit": 50}) and a street lamp.
 
-    infer_video stands for the proposed /infer-video: 3 frames, 5 m apart, going north."""
+    infer_video stands for the proposed /infer-video: 3 frames, 5 m apart, going north.
+    Placed with the track, else the GPS in the video (all but b"no gps"), else meta.route."""
 
     def __init__(self) -> None:
         self.inferred: list[ml.CameraMeta] = []
         self.dedups: list[ml.DedupRequest] = []
         self.videos: list[
-            tuple[bytes, bytes, ml.VideoInferMeta]
+            tuple[bytes, bytes | None, ml.VideoInferMeta]
         ] = []  # video, track, meta
 
     def infer(self, image: bytes, meta: ml.CameraMeta, content_type="image/jpeg"):
@@ -78,6 +79,14 @@ class MLStub:
         content = video.file.read()  # what would be streamed to ML
         if content == b"not a video":
             raise MLInputError("ML unsupported_video: could not read the video")
+        if video.track is not None:
+            location_source = "track"
+        elif content != b"no gps":
+            location_source = "embedded"
+        elif video.meta.route:
+            location_source = "route"
+        else:
+            raise MLInputError("ML no_location: no GPS track, no GPS in the video, no route")
         self.videos.append((content, video.track, video.meta.for_ml(sequence_id)))
         frames = []
         for i in range(3):
@@ -99,7 +108,9 @@ class MLStub:
                     observations=inferred.observations,
                 )
             )
-        return ml.InferVideoResponse(sequence_id=sequence_id, frames=frames)
+        return ml.InferVideoResponse(
+            sequence_id=sequence_id, location_source=location_source, frames=frames
+        )
 
     def _detections(self, meta: ml.CameraMeta) -> ml.InferResponse:
         rng = random.Random(meta.image_id)

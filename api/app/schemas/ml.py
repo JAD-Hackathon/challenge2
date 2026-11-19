@@ -71,7 +71,17 @@ class DedupResponse(BaseModel):
 
 
 # --- Proposed: POST /infer-video (not in ML yet, see "Video" in api/README.md) ---
-# Multipart: `video` file, `track` GPX file, `meta` = VideoInferMeta as JSON.
+# Multipart: `video` file, optional `track` GPX file, `meta` = VideoInferMeta as JSON.
+# Frame positions, first that exists: `track` > GPS stored in the video > `meta.route`.
+
+# Where ML got the frame positions: GPX sent with the video, GPS stored in the video file
+# (GoPro, DJI, dashcams...), or the route drawn on a map (approximate: constant speed assumed)
+LocationSource = Literal["track", "embedded", "route"]
+
+
+class RoutePoint(BaseModel):
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
 
 
 class VideoInferMeta(BaseModel):
@@ -86,6 +96,7 @@ class VideoInferMeta(BaseModel):
     heading_offset_deg: float = 0.0  # camera vs direction of travel: 0 front, 90 right
     fov: float | None = None
     camera_height_m: float | None = None
+    route: list[RoutePoint] | None = None  # only without a track: path start to end
 
 
 class InferredFrame(BaseModel):
@@ -99,4 +110,5 @@ class InferredFrame(BaseModel):
 
 class InferVideoResponse(BaseModel):
     sequence_id: str
+    location_source: LocationSource | None = None
     frames: list[InferredFrame]

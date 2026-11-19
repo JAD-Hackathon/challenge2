@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import BinaryIO
 
 from app.schemas.image import BatchResponse
-from app.schemas.ml import VideoInferMeta
+from app.schemas.ml import LocationSource, RoutePoint, VideoInferMeta
 from pydantic import BaseModel, Field
 
 
@@ -36,6 +36,14 @@ class VideoMeta(BaseModel):
         None, gt=0, lt=180, description="Horizontal field of view, °"
     )
     camera_height_m: float | None = Field(None, gt=0)
+    route: list[RoutePoint] | None = Field(
+        None,
+        min_length=2,
+        max_length=5000,
+        description="Only for a video without GPS (no track file, no GPS stored in the video): "
+        "the path the camera followed, start to end, e.g. drawn on a map. ML spreads the frames "
+        "along it at constant speed, so positions are approximate",
+    )
     author: str | None = Field(None, max_length=256)
     license: str | None = Field(None, max_length=64)
 
@@ -51,7 +59,7 @@ class UploadedVideo:
     file: BinaryIO  # streamed to ML: never read into memory, never saved
     filename: str | None
     content_type: str | None
-    track: bytes  # GPX, passed to ML as is
+    track: bytes | None  # GPX, passed to ML as is; None: GPS in the video or meta.route
     meta: VideoMeta
 
     def frame_filename(self, frame_index: int | None) -> str:
@@ -62,3 +70,8 @@ class VideoResponse(BatchResponse):
     """images = one result per frame ML kept (image_id = <sequence_id>_<frame_index>)."""
 
     sequence_id: str
+    location_source: LocationSource | None = Field(
+        None,
+        description="Where the frame positions come from: 'track' (the GPX), 'embedded' "
+        "(GPS stored in the video), 'route' (meta.route: approximate positions)",
+    )

@@ -6,8 +6,8 @@ POST /images  images: file (repeat once per image)
                         {"mapillary": {<Mapillary API v4 image record>}}
                         {"kartaview": {<KartaView API v2 photo record>}}
 POST /videos  video:  file (streamed to ML, never read into memory)
-              track:  GPX file recorded during the video (passed to ML as is)
-              meta:   '{"spacing_m": 5, ...}' (optional)
+              track:  GPX file recorded during the video (optional, passed to ML as is)
+              meta:   '{"spacing_m": 5, ...}' (optional; "route" for a video without GPS)
 """
 
 from typing import Annotated, Any
@@ -47,17 +47,22 @@ VideoForm = Annotated[
     ),
 ]
 TrackForm = Annotated[
-    UploadFile,
+    UploadFile | None,
     File(
-        description="GPS track recorded during the video: GPX with a <time> on each point"
+        description="Optional GPS track recorded during the video: GPX with a <time> on each "
+        "point. Leave out when the video stores its own GPS (GoPro, DJI, dashcams...), or send "
+        "meta.route instead"
     ),
 ]
 VideoMetaForm = Annotated[
     str,
     Form(
         description="Optional JSON VideoMeta (spacing_m, start_time, time_offset_s, "
-        "heading_offset_deg, fov, camera_height_m, author, license)",
-        examples=['{"spacing_m": 5, "time_offset_s": 0}'],
+        "heading_offset_deg, fov, camera_height_m, route, author, license)",
+        examples=[
+            '{"spacing_m": 5, "time_offset_s": 0}',
+            '{"route": [{"lat": 40.6412, "lon": -8.6538}, {"lat": 40.6425, "lon": -8.6531}]}',
+        ],
     ),
 ]
 
@@ -124,18 +129,23 @@ def _image_meta(index: int, item: dict[str, Any]) -> ImageMeta | str:
         raise InvalidInputError(f"metas[{index}]{_error_text(e)}") from None
 
 
-def read_video(video: UploadFile, track: UploadFile, meta: str) -> UploadedVideo:
+def read_video(video: UploadFile, track: UploadFile | None, meta: str) -> UploadedVideo:
+    """Without a track, ML uses the GPS stored in the video, else meta.route, else refuses
+    (only ML can tell: the API streams the video without opening it)."""
     if (video.size or 0) > settings.MAX_VIDEO_MB * 1024 * 1024:
         raise TooLargeError(f"The video is bigger than {settings.MAX_VIDEO_MB} MB")
     try:
         video_meta = VideoMeta.model_validate_json(meta)
     except ValidationError as e:
         raise InvalidInputError(f"meta{_error_text(e)}") from None
+    gpx = track.file.read() if track else b""  # an empty file field = no track
+    if gpx and video_meta.route:
+        raise InvalidInputError("Send either a GPS track or meta.route, not both")
     return UploadedVideo(
         file=video.file,
         filename=video.filename,
         content_type=video.content_type,
-        track=track.file.read(),
+        track=gpx or None,
         meta=video_meta,
     )
 

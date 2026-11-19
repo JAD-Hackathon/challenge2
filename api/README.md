@@ -45,7 +45,7 @@ Everything mock-only is in [`app/mocks/`](app/mocks/__init__.py). It mirrors the
 | POST | `/elements/{id}/verify` | Technician confirms it (also undoes a false-positive flag) |
 | POST | `/elements/{id}/false-positive` | Technician flags it as a false positive |
 | POST | `/images` | Upload a **batch** of images (multipart) |
-| POST | `/videos` | Upload a video + its GPS track (multipart) |
+| POST | `/videos` | Upload a video, with a GPS track or a drawn route if it has no GPS (multipart) |
 | GET  | `/images/{image_id}` | Image + all its detections (boxes) |
 | GET  | `/export/layers`, `/export/{table}.geojson`, `/export/{table}.csv` | Export, `?bbox=min_lon,min_lat,max_lon,max_lat` filter (**longitude first**, like GeoJSON and Leaflet's `getBounds().toBBoxString()`) |
 | GET  | `/media/images/{image_id}.jpg` | Blurred image (from the shared folder) |
@@ -138,52 +138,94 @@ CC BY-SA credit from it, so the web doesn't need to:
 
 Multipart form:
 - `video`: the video file (mp4, mov, ...), up to `MAX_VIDEO_MB` (default 1024 = 1 GB)
-- `track`: the GPS track recorded at the same time, as GPX (any GPS logger app exports it).
-  Every point needs a `<time>`.
+- `track` (optional): the GPS track recorded at the same time, as GPX (any GPS logger app
+  exports it). Every point needs a `<time>`.
 - `meta` (optional): JSON with any of
   - `spacing_m` (default 5): keep one frame every N metres
   - `start_time`: UTC time of the first frame, if the video's own clock is wrong
   - `time_offset_s`: shift if the video and GPS clocks don't match
   - `heading_offset_deg`: camera direction vs travel (0 = front, 90 = right)
+  - `route`: for a video without GPS, the path the camera followed, start to end:
+    `[{"lat": 40.6412, "lon": -8.6538}, {"lat": 40.6425, "lon": -8.6531}, ...]` (2+ points)
   - `fov`, `camera_height_m`, `author`, `license`
 
+**Where the frame positions come from**, first that exists:
+
+| Source | When | `location_source` |
+| --- | --- | --- |
+| `track` | A GPX was sent | `track` |
+| GPS stored in the video | GoPro, DJI, Insta360, most dashcams | `embedded` |
+| `meta.route` | Phone videos and other cameras without GPS: the user draws the route on a map | `route` |
+
+With none of these ML refuses the video (422 `ML no_location: ...`): ask the user to draw the
+route. Sending both `track` and `meta.route` is a 422. Phones store at most one point (where the
+recording started), not a track, so they need the route. Positions from a route are approximate
+(ML assumes a constant speed along it): `location_source` in the response says which was used,
+so the web can warn about it.
+
 ```bash
+# with a GPX
 curl -F video=@ride.mp4 -F track=@ride.gpx -F 'meta={"spacing_m": 5}' \
+     http://localhost:8000/api/v1/videos
+# GoPro / dashcam: GPS inside the video
+curl -F video=@GX010042.MP4 http://localhost:8000/api/v1/videos
+# phone video: route drawn on the map
+curl -F video=@walk.mp4 \
+     -F 'meta={"route": [{"lat": 40.6412, "lon": -8.6538}, {"lat": 40.6425, "lon": -8.6531}]}' \
      http://localhost:8000/api/v1/videos
 ```
 
 ```php
-$response = Http::timeout(900)
-    ->attach('video', fopen($video->getRealPath(), 'r'), $video->getClientOriginalName())
-    ->attach('track', file_get_contents($gpx->getRealPath()), $gpx->getClientOriginalName())
-    ->post("$api/api/v1/videos", ['meta' => json_encode(['spacing_m' => 5])]);
+$request = Http::timeout(900)
+    ->attach('video', fopen($video->getRealPath(), 'r'), $video->getClientOriginalName());
+$meta = ['spacing_m' => 5];
+if ($gpx) {
+    $request = $request->attach('track', file_get_contents($gpx->getRealPath()), $gpx->getClientOriginalName());
+} elseif ($route) {  // drawn on the map: [['lat' => ..., 'lon' => ...], ...]
+    $meta['route'] = $route;
+}
+$response = $request->post("$api/api/v1/videos", ['meta' => json_encode($meta)]);
 ```
 
 The API doesn't touch the video: it streams it to ML's `POST /infer-video` together with the
-GPX and the settings (all but `author` / `license`, which the API keeps), and gives ML a new
-`sequence_id`. ML picks the frames, places them with the track, blurs them and detects elements.
-The API stores each frame like an uploaded image and runs one `/dedup` for the whole video. The
-response is the same as for images, plus `sequence_id`. The video itself is never saved, only
-ML's blurred frames. Synchronous: ML gets up to `ML_VIDEO_TIMEOUT_S` (900 s), so give the request a
-long timeout.
+GPX (if any) and the settings (all but `author` / `license`, which the API keeps), and gives ML
+a new `sequence_id`. ML picks the frames, places them, blurs them and detects elements. The API
+stores each frame like an uploaded image and runs one `/dedup` for the whole video. The
+response is the same as for images, plus `sequence_id` and `location_source`. The video itself
+is never saved, only ML's blurred frames. Synchronous: ML gets up to `ML_VIDEO_TIMEOUT_S`
+(900 s), so give the request a long timeout.
 
-Errors: 413 video too big, 422 bad `meta` or ML can't read the video / GPX,
-**501 while ML doesn't have `/infer-video` yet**, 502 ML down.
+Errors: 413 video too big, 422 bad `meta` / both track and route / ML can't read the video or
+GPX / no location (`ML no_location`), **501 while ML doesn't have `/infer-video` yet**, 502 ML
+down.
 
 #### For the ML team: proposed `POST /infer-video`
 
 The API already calls it (see `app/schemas/ml.py`, "Proposed: POST /infer-video"). It's the
 contract's `extract-frames` step plus `/infer` for each frame, as an endpoint:
 
-Request (multipart): `video` file, `track` GPX file, `meta` JSON:
+Request (multipart): `video` file, optional `track` GPX file, `meta` JSON:
 ```json
 {"sequence_id": "vid_3f2a...", "spacing_m": 5, "start_time": null, "time_offset_s": 0,
- "heading_offset_deg": 0, "fov": null, "camera_height_m": null}
+ "heading_offset_deg": 0, "fov": null, "camera_height_m": null,
+ "route": null}
 ```
+Frame positions, first that exists (never both `track` and `route`, the API refuses that):
+1. `track`: the GPX, as today.
+2. GPS stored in the video: `exiftool -ee -p gpx.fmt video.mp4` turns the timed GPS of GoPro,
+   DJI, Insta360 and most dashcams into the same GPX, so step 1's code can be reused. A single
+   point (what phones store) isn't a track: skip it.
+3. `route` (2+ `{"lat", "lon"}`, start to end): spread the frames along the line at constant
+   speed (first frame at the start, last at the end), heading = direction of the line there.
+   Positions can be tens of metres off (the camera stops at crossings...): give these frames'
+   observations a bigger `uncertainty_m`. Detecting stops (frames that barely change) helps.
+4. None: 422 `{"error": {"code": "no_location", "message": "..."}}`.
+
 Response:
 ```json
 {
   "sequence_id": "vid_3f2a...",
+  "location_source": "track",
   "frames": [
     {
       "camera": {"image_id": "vid_3f2a..._0000", "lat": 40.6412, "lon": -8.6538, "heading": 92.5,
@@ -197,7 +239,9 @@ Response:
 }
 ```
 - Frame `image_id` = `<sequence_id>_<frame_index>` (`sequence_id` is unique, so frames are too).
-- Same errors as `/infer` (e.g. `unsupported_video` 415 if the video or GPX can't be read).
+- `location_source`: `track`, `embedded` or `route` (step 1, 2 or 3 above).
+- Same errors as `/infer` (e.g. `unsupported_video` 415 if the video or GPX can't be read),
+  plus `no_location` 422.
 - Raw video and frames stay in memory, only blurred frames go to the shared folder.
 - A mock for it (like `/infer`'s) lets the web test video uploads.
 

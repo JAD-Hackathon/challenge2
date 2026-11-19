@@ -93,7 +93,10 @@ def ingest_video(video: UploadedVideo) -> VideoResponse:
         base = {"index": index, "filename": filename, "image_id": image.id}
         results.append(_processed(base, image, frame.observations))
     return VideoResponse(
-        images=results, elements=collected.save(), sequence_id=result.sequence_id
+        images=results,
+        elements=collected.save(),
+        sequence_id=result.sequence_id,
+        location_source=result.location_source,
     )
 
 

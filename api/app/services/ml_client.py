@@ -90,21 +90,24 @@ def dedup(request: DedupRequest) -> DedupResponse:
 
 
 def infer_video(video: UploadedVideo, sequence_id: str) -> InferVideoResponse:
-    """ML picks the frames (positions from the GPS track), then blurs + detects each one.
+    """ML picks the frames and places them (GPX track > GPS in the video > meta.route), then
+    blurs + detects each one.
 
     Proposed endpoint, see "Video" in api/README.md. The video is streamed, not loaded in memory.
     """
+    files = {
+        "video": (
+            video.filename or "video.mp4",
+            video.file,
+            video.content_type or "application/octet-stream",
+        )
+    }
+    if video.track is not None:
+        files["track"] = ("track.gpx", video.track, "application/gpx+xml")
     response = _post(
         "/infer-video",
         timeout=settings.ML_VIDEO_TIMEOUT_S,
-        files={
-            "video": (
-                video.filename or "video.mp4",
-                video.file,
-                video.content_type or "application/octet-stream",
-            ),
-            "track": ("track.gpx", video.track, "application/gpx+xml"),
-        },
+        files=files,
         data={"meta": video.meta.for_ml(sequence_id).model_dump_json()},
     )
     return _parse(InferVideoResponse, response)
