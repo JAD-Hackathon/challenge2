@@ -1,7 +1,7 @@
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import BinaryIO, Literal
+from typing import BinaryIO
 
 from pydantic import BaseModel, Field
 
@@ -10,16 +10,6 @@ from app.schemas.image import BatchResponse
 
 def new_sequence_id() -> str:
     return f"vid_{uuid.uuid4().hex}"
-
-
-# Where the frame positions come from: the GPX recorded with the video, or the route drawn on a
-# map (approximate: constant speed assumed)
-LocationSource = Literal["track", "route"]
-
-
-class RoutePoint(BaseModel):
-    lat: float = Field(ge=-90, le=90)
-    lon: float = Field(ge=-180, le=180)
 
 
 class VideoMeta(BaseModel):
@@ -47,14 +37,6 @@ class VideoMeta(BaseModel):
         None, gt=0, lt=180, description="Horizontal field of view, °"
     )
     camera_height_m: float | None = Field(None, gt=0)
-    route: list[RoutePoint] | None = Field(
-        None,
-        min_length=2,
-        max_length=5000,
-        description="Only for a video without a GPS track: the path the camera followed, "
-        "start to end, e.g. drawn on a map. The frames are spread along it at constant speed, "
-        "so positions are approximate",
-    )
     author: str | None = Field(None, max_length=256)
     license: str | None = Field(None, max_length=64)
 
@@ -64,7 +46,7 @@ class UploadedVideo:
     file: BinaryIO  # copied to a temporary file while its frames are read, never kept
     filename: str | None
     content_type: str | None
-    track: bytes | None  # GPX; None: meta.route places the frames
+    track: bytes  # GPX recorded with the video: places the frames
     meta: VideoMeta
 
     def frame_filename(self, frame_index: int | None) -> str:
@@ -75,7 +57,3 @@ class VideoResponse(BatchResponse):
     """images = one result per frame kept (image_id = <sequence_id>_<frame_index>)."""
 
     sequence_id: str
-    location_source: LocationSource = Field(
-        description="Where the frame positions come from: 'track' (the GPX) or 'route' "
-        "(meta.route: approximate positions)",
-    )

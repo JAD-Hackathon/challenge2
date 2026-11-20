@@ -1,9 +1,9 @@
 """Uploads -> ML -> one ML /dedup for the whole upload -> catalogue.
 
 POST /images: ML /infer for each image. A file ML refuses only fails that item.
-POST /videos: the API picks one frame every spacing_m metres and places it with the GPS track
-              (or the drawn route), see video_frames.py. Then each frame is an image like
-              any other: ML /infer, stored, one /dedup for the whole video.
+POST /videos: the API picks one frame every spacing_m metres and places it with the GPS track,
+              see video_frames.py. Then each frame is an image like any other: ML /infer,
+              stored, one /dedup for the whole video.
 Either way, if ML is down the whole upload fails and nothing is saved.
 """
 
@@ -43,15 +43,11 @@ def ingest_batch(db: Session, uploads: Iterable[UploadedImage]) -> BatchResponse
 
 
 def ingest_video(db: Session, video: UploadedVideo) -> VideoResponse:
-    """The frames, placed along the track / route, go through ingest_batch like images."""
+    """The frames, placed along the GPS track, go through ingest_batch like images."""
     sequence_id = new_sequence_id()
     with video_frames.open_video(video, sequence_id) as frames:
         batch = ingest_batch(db, frames)
-    return VideoResponse(
-        **dict(batch),
-        sequence_id=sequence_id,
-        location_source=frames.location_source,
-    )
+    return VideoResponse(**dict(batch), sequence_id=sequence_id)
 
 
 # --- steps ---

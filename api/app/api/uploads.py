@@ -7,7 +7,7 @@ POST /images  images: file (repeat once per image)
                         {"kartaview": {<KartaView API v2 photo record>}}
 POST /videos  video:  file (only kept in a temporary file while its frames are read)
               track:  GPX file recorded during the video
-              meta:   '{"spacing_m": 5, ...}' (optional; "route" for a video without a track)
+              meta:   '{"spacing_m": 5, ...}' (optional)
 """
 
 from typing import Annotated, Any
@@ -50,21 +50,18 @@ VideoForm = Annotated[
     ),
 ]
 TrackForm = Annotated[
-    UploadFile | None,
+    UploadFile,
     File(
         description="GPS track recorded during the video: GPX with a <time> on each point "
-        "(any GPS logger app exports it). Without one, send meta.route instead"
+        "(any GPS logger app exports it). Required: it places the frames"
     ),
 ]
 VideoMetaForm = Annotated[
     str,
     Form(
         description="Optional JSON VideoMeta (spacing_m, start_time, time_offset_s, "
-        "heading_offset_deg, fov, camera_height_m, route, author, license)",
-        examples=[
-            '{"spacing_m": 5, "time_offset_s": 0}',
-            '{"route": [{"lat": 40.6412, "lon": -8.6538}, {"lat": 40.6425, "lon": -8.6531}]}',
-        ],
+        "heading_offset_deg, fov, camera_height_m, author, license)",
+        examples=['{"spacing_m": 5, "time_offset_s": 0}'],
     ),
 ]
 
@@ -131,7 +128,7 @@ def _image_meta(index: int, item: dict[str, Any]) -> ImageMeta | str:
         raise InvalidInputError(f"metas[{index}]{_error_text(e)}") from None
 
 
-def read_video(video: UploadFile, track: UploadFile | None, meta: str) -> UploadedVideo:
+def read_video(video: UploadFile, track: UploadFile, meta: str) -> UploadedVideo:
     """The form as it came. The track itself is read with the video (services/video_frames)."""
     if (video.size or 0) > settings.MAX_VIDEO_MB * 1024 * 1024:
         raise TooLargeError(f"The video is bigger than {settings.MAX_VIDEO_MB} MB")
@@ -139,14 +136,14 @@ def read_video(video: UploadFile, track: UploadFile | None, meta: str) -> Upload
         video_meta = VideoMeta.model_validate_json(meta)
     except ValidationError as e:
         raise InvalidInputError(f"meta{_error_text(e)}") from None
-    gpx = track.file.read() if track else b""  # an empty file field = no track
-    if gpx and video_meta.route:
-        raise InvalidInputError("Send either a GPS track or meta.route, not both")
+    gpx = track.file.read()
+    if not gpx:  # a web form with the file input left empty sends an empty file
+        raise InvalidInputError("track: the GPX file is empty")
     return UploadedVideo(
         file=video.file,
         filename=video.filename,
         content_type=video.content_type,
-        track=gpx or None,
+        track=gpx,
         meta=video_meta,
     )
 

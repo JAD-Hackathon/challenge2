@@ -84,11 +84,7 @@ def ingest_video(video: UploadedVideo) -> VideoResponse:
     sequence_id = new_sequence_id()
     with video_frames.open_video(video, sequence_id) as frames:
         batch = ingest_batch(frames)
-    return VideoResponse(
-        **dict(batch),
-        sequence_id=sequence_id,
-        location_source=frames.location_source,
-    )
+    return VideoResponse(**dict(batch), sequence_id=sequence_id)
 
 
 def get_image(image_id: str) -> ImageRead:
