@@ -21,7 +21,7 @@ services:
         TORCH_VARIANT: ${TORCH_VARIANT:-cpu}
     environment:
       ML_SHARED_DIR: /data
-      ML_MOCK: ${ML_MOCK:-true}
+      ML_MOCK: ${ML_MOCK:-false}
       ML_DEVICE: ${ML_DEVICE:-auto}
     ports:
       - "8001:8000"
