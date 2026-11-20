@@ -1,19 +1,26 @@
 """Detections of a batch -> ML /dedup -> elements in the catalogue (used by services/ingest.py).
 
-Observation and element ids are the ones ML returns: the API never makes its own, so they match
-ML's logs. ML's mock derives observation ids from the image_id, which is fine because an
-image_id is only sent to ML once (ingest skips ids that were already processed).
+Observation ids are the ones ML returns, and so are element ids (ML's non-UUID ids are mapped to
+a fixed UUID, see schemas/ml.py): the API never makes its own, so they match ML's logs.
+
+ML rebuilds 'auto' elements from the observations it is sent, and reports every existing 'auto'
+element it didn't rebuild as removed. So, next to the new detections, the API sends the
+observations (and cameras) of the 'auto' elements nearby: ML can then merge old and new views,
+and an element is only removed when its views were all given to other elements.
+Elements a human checked (verified / corrected / rejected) are sent without their observations:
+ML never moves them, it only links new views to verified / corrected ones.
 """
 
 import logging
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
 from app.core import taxonomy
 from app.database.postgis import LatLon, point
-from app.models.element import LOCKED_STATUSES, Element
+from app.models.element import LOCKED_STATUSES, Element, ElementStatus
 from app.models.observation import Observation
 from app.repositories import element as element_repo
 from app.schemas import ml
@@ -79,15 +86,24 @@ class DedupResult:
 def run_dedup(db: Session, pending: PendingObservations) -> DedupResult:
     if not pending.rows:
         return DedupResult([], [])
-    existing = element_repo.list_near(db, pending.points(), SEARCH_MARGIN_M)
+    existing = [
+        e
+        for e in element_repo.list_near(db, pending.points(), SEARCH_MARGIN_M)
+        if e.observations
+    ]
+    earlier = [
+        o for e in existing if e.status is ElementStatus.AUTO for o in e.observations
+    ]
     response = ml_client.dedup(
         ml.DedupRequest(
-            observations=pending.detections,
-            images=list(pending.cameras.values()),
-            existing_elements=[_to_ml(e) for e in existing if e.observations],
+            observations=pending.detections + [_observation_to_ml(o) for o in earlier],
+            images=list(pending.cameras.values()) + _cameras(earlier, pending.cameras),
+            existing_elements=[_to_ml(e) for e in existing],
         )
     )
-    return _apply(db, response, pending)
+    sent = pending.rows | {o.id: o for o in earlier}
+    views_before = {e.id: {o.id for o in e.observations} for e in existing}
+    return _apply(db, response, sent, views_before)
 
 
 def _to_ml(element: Element) -> ml.MLElement:
@@ -105,9 +121,49 @@ def _to_ml(element: Element) -> ml.MLElement:
     )
 
 
+def _observation_to_ml(row: Observation) -> ml.Observation:
+    """A stored observation, as /infer returned it."""
+    return ml.Observation(
+        observation_id=row.id,
+        type=row.type,
+        score=row.score,
+        bbox_xyxy=row.bbox_xyxy,
+        bearing_deg=row.bearing_deg,
+        est_lat=row.latitude,
+        est_lon=row.longitude,
+        uncertainty_m=row.uncertainty_m,
+        attributes=row.attributes or None,
+    )
+
+
+def _cameras(
+    rows: Iterable[Observation], known: dict[str, ml.CameraMeta]
+) -> list[ml.CameraMeta]:
+    """Cameras of the images these observations come from (ML uses them for ray checks)."""
+    images = {o.image.id: o.image for o in rows if o.image_id not in known}
+    return [
+        ml.CameraMeta(image_id=i.id, lat=i.latitude, lon=i.longitude, heading=i.heading)
+        for i in images.values()
+    ]
+
+
+def _link(rows: Iterable[Observation], element: Element) -> None:
+    for row in rows:
+        # Through the relationship, so the element the view leaves drops it from its list too:
+        # the removal check in _apply reads that list, and deleting an element unlinks every
+        # view still in it.
+        row.element = element
+        row.element_id = element.id  # the relationship only sets it at flush
+
+
 def _apply(
-    db: Session, response: ml.DedupResponse, pending: PendingObservations
+    db: Session,
+    response: ml.DedupResponse,
+    sent: dict[str, Observation],
+    views_before: dict[uuid.UUID, set[str]],
 ) -> DedupResult:
+    """sent: every observation in the request (new and earlier ones), by id.
+    views_before: observation ids of each existing element sent, before this dedup."""
     touched: dict[uuid.UUID, Element] = {}
     print(
         f"\n[DEDUP] ML returned {len(response.elements)} elements, "
@@ -122,26 +178,34 @@ def _apply(
         )
 
     for found in response.elements:
-        new_rows = [pending.rows[i] for i in found.observation_ids if i in pending.rows]
-        if not new_rows:
+        rows = [sent[i] for i in found.observation_ids if i in sent]
+        if not rows:
             print(
                 f"[DEDUP] element {found.element_id} ({found.type}): "
-                "no new observations, skipped",
+                "none of the observations sent, skipped",
                 flush=True,
             )
-            continue  # nothing new for this element
+            continue
 
         element = db.get(Element, found.element_id)
         if element is not None and element.status in LOCKED_STATUSES:
+            # New view of something a human already decided on: link it, change nothing else
+            moved = [r for r in rows if r.element_id != element.id]
             print(
                 f"[DEDUP] element {found.element_id} is {element.status.value} (locked): "
-                f"linked {len(new_rows)} new observations, nothing else changed",
+                f"linked {len(moved)} observations, nothing else changed",
                 flush=True,
             )
-            # New view of something a human already decided on: link it, change nothing else
-            for row in new_rows:
-                row.element_id = element.id
-            touched[element.id] = element
+            if moved:
+                _link(moved, element)
+                touched[element.id] = element
+            continue
+
+        if element is not None and views_before.get(element.id) == {r.id for r in rows}:
+            print(
+                f"[DEDUP] element {found.element_id} ({found.type}): same views, unchanged",
+                flush=True,
+            )
             continue
 
         try:
@@ -160,14 +224,14 @@ def _apply(
             f"[DEDUP] element {found.element_id}: "
             f"{'CREATE' if element is None else 'UPDATE'} {found.type} "
             f"at ({found.lat}, {found.lon}) conf={found.confidence} "
-            f"new_obs={len(new_rows)}/{len(found.observation_ids)} "
+            f"obs={len(rows)}/{len(found.observation_ids)} "
             f"attributes={found.attributes}",
             flush=True,
         )
         if element is None:
             element = Element(id=found.element_id)
             db.add(element)
-        best = pending.rows.get(found.best_observation_id)
+        best = sent.get(found.best_observation_id)
         element.name = taxonomy.label(found.type)
         element.category = category
         element.type = type_
@@ -180,8 +244,7 @@ def _apply(
             element.attributes = best.attributes
         else:
             element.attributes = element.attributes or {}
-        for row in new_rows:
-            row.element_id = element.id
+        _link(rows, element)
         touched[element.id] = element
 
     removed: list[uuid.UUID] = []
@@ -197,8 +260,15 @@ def _apply(
                 flush=True,
             )
             continue
+        if element.observations:  # ML didn't give these views to another element
+            print(
+                f"[DEDUP] remove {element_id}: kept, {len(element.observations)} "
+                "observations were not placed elsewhere",
+                flush=True,
+            )
+            continue
         print(f"[DEDUP] remove {element_id}: deleted", flush=True)
-        db.delete(element)  # its observations are kept, unassigned
+        db.delete(element)
         removed.append(element_id)
 
     db.flush()

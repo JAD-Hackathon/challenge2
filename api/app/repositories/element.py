@@ -55,7 +55,8 @@ def get_elements(db: Session, element_ids: Iterable[uuid.UUID]) -> Sequence[Elem
 def list_near(
     db: Session, points: Sequence[LatLon], margin_m: float
 ) -> Sequence[Element]:
-    """Elements (any status) inside the bbox of the points grown by margin_m."""
+    """Elements (any status) inside the bbox of the points grown by margin_m, with their
+    observations and the images (cameras) those come from, which /dedup needs."""
     if not points:
         return []
     lats, lons = [p.lat for p in points], [p.lon for p in points]
@@ -67,6 +68,6 @@ def list_near(
     stmt = (
         select(Element)
         .where(func.ST_Intersects(Element.geom, envelope))
-        .options(selectinload(Element.observations))
+        .options(selectinload(Element.observations).selectinload(Observation.image))
     )
     return db.scalars(stmt).all()

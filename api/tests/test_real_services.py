@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 
 import httpx
 import pytest
+from pydantic import TypeAdapter
 from app.core import taxonomy
 from app.database.postgis import LatLon, point
 from app.models.element import Element, ElementCategory, ElementStatus
@@ -25,6 +26,7 @@ from app.services.ml_client import MLInputError, MLNotImplementedError, MLServic
 
 NOW = datetime(2026, 11, 16, tzinfo=UTC)
 SIGN = ElementCategory.TRAFFIC_SIGN
+ML_ID = TypeAdapter(ml.ElementId)
 
 
 class FakeSession:
@@ -61,6 +63,19 @@ class FakeSession:
         return [o for o in self.added if isinstance(o, cls)]
 
 
+def view(type_="stop") -> Observation:
+    """A stored observation with its image, as list_near loads them."""
+    image = Image(id=f"up_{uuid.uuid4().hex}", heading=90.0)
+    image.latitude, image.longitude = 40.64, -8.65  # computed by PostGIS for real
+    o = Observation(
+        id=f"{image.id}:{uuid.uuid4().hex[:8]}", image_id=image.id, type=f"sign.{type_}",
+        score=0.8, bbox_xyxy=[1, 1, 5, 5], attributes={}, bearing_deg=0.0, uncertainty_m=2.0,
+    )  # fmt: skip
+    o.image = image
+    o.latitude, o.longitude = 40.6401, -8.65
+    return o
+
+
 def element(status=ElementStatus.AUTO, type_="stop") -> Element:
     e = Element(
         id=uuid.uuid4(), name=taxonomy.label(f"sign.{type_}"), category=SIGN, type=type_,
@@ -68,8 +83,25 @@ def element(status=ElementStatus.AUTO, type_="stop") -> Element:
     )  # fmt: skip
     # computed by PostGIS / server defaults for real
     e.latitude, e.longitude, e.created_at, e.updated_at = 40.64, -8.65, NOW, NOW
-    e.observations = [Observation(id=str(uuid.uuid4()), type=f"sign.{type_}", score=0.8)]
+    e.observations = [view(type_)]
+    e.observations[0].element_id = e.id
     return e
+
+
+def new_detection(db, pending, type_="sign.stop") -> Observation:
+    return pending.add(
+        db,
+        ml.Observation(observation_id=f"img:{uuid.uuid4().hex[:8]}", type=type_, score=0.9,
+                       bbox_xyxy=[1, 1, 5, 5], est_lat=40.6401, est_lon=-8.65),
+        ml.CameraMeta(image_id="img", lat=40.64, lon=-8.65, heading=0),
+    )  # fmt: skip
+
+
+def ml_element(element_id, rows, type_="sign.stop") -> ml.MLElement:
+    return ml.MLElement(
+        element_id=element_id, type=type_, lat=40.6401, lon=-8.65, confidence=0.9,
+        observation_ids=[r.id for r in rows], best_observation_id=rows[0].id,
+    )  # fmt: skip
 
 
 @pytest.fixture
@@ -201,6 +233,17 @@ def test_ingest_video_ml_down_saves_nothing(
 # --- dedup ---
 
 
+def fake_ml(monkeypatch, *elements: ml.MLElement, removed=()) -> list[ml.DedupRequest]:
+    sent: list[ml.DedupRequest] = []
+
+    def fake_dedup(request):
+        sent.append(request)
+        return ml.DedupResponse(elements=list(elements), removed_element_ids=list(removed))
+
+    monkeypatch.setattr(ml_client, "dedup", fake_dedup)
+    return sent
+
+
 def test_dedup_never_changes_human_decisions(monkeypatch):
     verified, merged_away, rejected = (
         element(ElementStatus.VERIFIED),
@@ -211,41 +254,84 @@ def test_dedup_never_changes_human_decisions(monkeypatch):
     monkeypatch.setattr(
         element_repo, "list_near", lambda *a: [verified, merged_away, rejected]
     )
-
     pending = dedup.PendingObservations()
-    camera = ml.CameraMeta(image_id="img", lat=40.64, lon=-8.65, heading=0)
-    new_view = pending.add(
-        db, ml.Observation(observation_id=str(uuid.uuid4()), type="sign.yield", score=0.9,
-                           bbox_xyxy=[1, 1, 5, 5]), camera,
-    )  # fmt: skip
-    sent = []
-
-    def fake_dedup(request):
-        sent.append(request)
-        return ml.DedupResponse(
-            elements=[
-                ml.MLElement(
-                    element_id=verified.id,
-                    type="sign.yield",
-                    lat=1,
-                    lon=1,
-                    confidence=0.1,
-                    observation_ids=[new_view.id],
-                    best_observation_id=new_view.id,
-                )  # fmt: skip
-            ],
-            removed_element_ids=[merged_away.id, rejected.id],
-        )
-
-    monkeypatch.setattr(ml_client, "dedup", fake_dedup)
+    new_view = new_detection(db, pending, "sign.yield")
+    earlier_view = merged_away.observations[0]
+    sent = fake_ml(
+        monkeypatch,
+        # ML found that the auto element was the verified one, seen again
+        ml_element(verified.id, [new_view, earlier_view], "sign.yield"),
+        removed=[merged_away.id, rejected.id],
+    )
     result = dedup.run_dedup(db, pending)
 
     statuses = {e.element_id: e.status for e in sent[0].existing_elements}
     assert statuses[rejected.id] == "rejected"  # ML is told about false positives
+    assert {o.observation_id for o in sent[0].observations} == {new_view.id, earlier_view.id}
     assert (verified.type, verified.confidence) == ("stop", 0.8)  # untouched...
-    assert new_view.element_id == verified.id  # ...but the new view is linked to it
+    assert new_view.element_id == earlier_view.element_id == verified.id  # ...but gains views
     assert db.deleted == [merged_away]  # rejected elements are never deleted
     assert result.removed_ids == [merged_away.id]
+
+
+def test_dedup_sends_views_of_nearby_auto_elements(monkeypatch):
+    """ML rebuilds auto elements from the observations it gets: without their earlier views it
+    would report every auto element nearby as removed."""
+    nearby = element()
+    db = FakeSession(nearby)
+    monkeypatch.setattr(element_repo, "list_near", lambda *a: [nearby])
+    pending = dedup.PendingObservations()
+    new_view = new_detection(db, pending)
+    earlier_view = nearby.observations[0]
+    sent = fake_ml(
+        monkeypatch,
+        ml_element(nearby.id, [earlier_view]),  # rebuilt from the same view
+        ml_element("el_0123456789ab", [new_view]),
+    )
+    result = dedup.run_dedup(db, pending)
+
+    request = sent[0]
+    assert [o.observation_id for o in request.observations] == [new_view.id, earlier_view.id]
+    assert request.observations[1].est_lat == 40.6401
+    assert {c.image_id for c in request.images} == {"img", earlier_view.image_id}
+    assert (nearby.confidence, db.deleted) == (0.8, [])  # same views: left as it was
+    assert [e.id for e in result.elements] == [ML_ID.validate_python("el_0123456789ab")]
+    assert new_view.element_id == result.elements[0].id
+    assert earlier_view.element_id == nearby.id
+
+
+def test_dedup_moves_views_and_removes_emptied_element(monkeypatch):
+    old = element()
+    db = FakeSession(old)
+    monkeypatch.setattr(element_repo, "list_near", lambda *a: [old])
+    pending = dedup.PendingObservations()
+    new_view = new_detection(db, pending)
+    earlier_view = old.observations[0]
+    fake_ml(
+        monkeypatch,
+        ml_element("el_0123456789ab", [new_view, earlier_view]),
+        removed=[old.id],
+    )
+    result = dedup.run_dedup(db, pending)
+
+    merged = result.elements[0]
+    assert {o.id for o in merged.observations} == {new_view.id, earlier_view.id}
+    assert earlier_view.element is merged and earlier_view.element_id == merged.id
+    assert old.observations == []  # so deleting it doesn't unlink the moved view
+    assert db.deleted == [old] and result.removed_ids == [old.id]
+
+
+def test_dedup_keeps_removed_element_whose_views_were_not_placed(monkeypatch):
+    nearby = element()
+    db = FakeSession(nearby)
+    monkeypatch.setattr(element_repo, "list_near", lambda *a: [nearby])
+    pending = dedup.PendingObservations()
+    new_view = new_detection(db, pending)
+    fake_ml(monkeypatch, ml_element("el_0123456789ab", [new_view]), removed=[nearby.id])
+    result = dedup.run_dedup(db, pending)
+
+    assert db.deleted == [] and result.removed_ids == []
+    assert nearby.observations[0].element_id == nearby.id
 
 
 def test_dedup_skips_unknown_classes(monkeypatch, ml_stub):
@@ -345,19 +431,25 @@ def test_ml_errors_are_split_by_status():
 
 
 def test_ml_ids():
-    """Observation ids are any string (ML sends short hex ids); element ids must be UUIDs (502)."""
+    """Observation ids are kept as ML sends them. Element ids may be any string: the API's own
+    UUIDs come back as they are, other ids (ML's "el_<hex>") map to a fixed UUID."""
     body = {"image_id": "x", "blurred_image_path": "images/x.jpg", "observations": [
-        {"observation_id": "a1b2c3d4e5f6", "type": "sign.stop", "score": 0.9, "bbox_xyxy": [1, 1, 2, 2]}
+        {"observation_id": "x:a1b2c3d4", "type": "sign.stop", "score": 0.9, "bbox_xyxy": [1, 1, 2, 2]}
     ]}  # fmt: skip
     parsed = ml_client._parse(ml.InferResponse, httpx.Response(200, json=body))
-    assert parsed.observations[0].observation_id == "a1b2c3d4e5f6"
+    assert parsed.observations[0].observation_id == "x:a1b2c3d4"
 
+    ours = uuid.uuid4()
     body = {"elements": [
-        {"element_id": "a1b2", "type": "sign.stop", "lat": 1, "lon": 1, "confidence": 0.9,
-         "observation_ids": ["a1b2c3d4e5f6"], "best_observation_id": "a1b2c3d4e5f6"}
-    ]}  # fmt: skip
-    with pytest.raises(MLServiceError, match="breaks the contract"):
-        ml_client._parse(ml.DedupResponse, httpx.Response(200, json=body))
+        {"element_id": eid, "type": "sign.stop", "lat": 1, "lon": 1, "confidence": 0.9,
+         "observation_ids": ["x:a1b2c3d4"], "best_observation_id": "x:a1b2c3d4"}
+        for eid in (str(ours), "el_0123456789ab")
+    ], "removed_element_ids": ["el_0123456789ab"]}  # fmt: skip
+    parsed = ml_client._parse(ml.DedupResponse, httpx.Response(200, json=body))
+    kept, mapped = (e.element_id for e in parsed.elements)
+    assert kept == ours
+    assert isinstance(mapped, uuid.UUID) and mapped == ML_ID.validate_python("el_0123456789ab")
+    assert parsed.removed_element_ids == [mapped]  # same ML id -> same UUID
 
 
 def test_taxonomy():

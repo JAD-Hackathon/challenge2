@@ -1,16 +1,31 @@
 """Mirror of the ML service contract (ml/docs/data_contract.md). Keep in sync with ml/src/service/schemas.py.
 
 IDs: image_id is chosen by the API (ML only uses it as a file name). observation_id and
-element_id are created by ML and stored as they are. observation_id is any string (ML sends
-short hex ids); element_id must be a UUID (contract rule).
+element_id are created by ML. observation_id is any string, stored as it is (ML sends
+"<image_id>:<hex>"). element_id is any string too (ML sends "el_<hex>" for new elements), but
+the catalogue keys elements by UUID: see ElementId.
 """
 
 import uuid
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, BeforeValidator, Field
 
 Source = Literal["mapillary", "kartaview", "video"]
+
+
+def _element_uuid(value: Any) -> Any:
+    """A UUID stays as it is (elements the API sent come back with its own ids). Any other
+    string is mapped to a fixed UUID, so the same ML id always means the same element."""
+    if isinstance(value, str):
+        try:
+            return uuid.UUID(value)
+        except ValueError:
+            return uuid.uuid5(uuid.NAMESPACE_URL, f"ml-element:{value}")
+    return value
+
+
+ElementId = Annotated[uuid.UUID, BeforeValidator(_element_uuid)]
 
 
 class CameraMeta(BaseModel):
@@ -45,7 +60,7 @@ class InferResponse(BaseModel):
 
 
 class MLElement(BaseModel):
-    element_id: uuid.UUID
+    element_id: ElementId
     type: str
     lat: float
     lon: float
@@ -67,5 +82,5 @@ class DedupRequest(BaseModel):
 class DedupResponse(BaseModel):
     elements: list[MLElement]
     unassigned_observation_ids: list[str] = []
-    removed_element_ids: list[uuid.UUID] = []
+    removed_element_ids: list[ElementId] = []
 
