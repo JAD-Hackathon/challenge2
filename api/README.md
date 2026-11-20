@@ -45,7 +45,7 @@ Everything mock-only is in [`app/mocks/`](app/mocks/__init__.py). It mirrors the
 | POST | `/elements/{id}/verify` | Technician confirms it (also undoes a false-positive flag) |
 | POST | `/elements/{id}/false-positive` | Technician flags it as a false positive |
 | POST | `/images` | Upload a **batch** of images (multipart) |
-| POST | `/videos` | Upload a video, with a GPS track or a drawn route if it has no GPS (multipart) |
+| POST | `/videos` | Upload a video with its GPS track (GPX) (multipart) |
 | GET  | `/images/{image_id}` | Image + all its detections (boxes) |
 | GET  | `/export/layers`, `/export/{table}.geojson`, `/export/{table}.csv` | Export, `?bbox=min_lon,min_lat,max_lon,max_lat` filter (**longitude first**, like GeoJSON and Leaflet's `getBounds().toBBoxString()`) |
 | GET  | `/media/images/{image_id}.jpg` | Blurred image (from the shared folder) |
@@ -139,70 +139,51 @@ CC BY-SA credit from it, so the web doesn't need to:
 Multipart form:
 - `video`: the video file (mp4, mov, ...), up to `MAX_VIDEO_MB` (default 1024 = 1 GB)
 - `track`: the GPS track recorded at the same time, as GPX (any GPS logger app exports it),
-  with a `<time>` on every point. Leave it out only when sending `meta.route`.
+  with a `<time>` on every point. **Required**: it is the only source of the frame positions.
 - `meta` (optional): JSON with any of
   - `spacing_m` (default 5): keep one frame every N metres
   - `start_time`: UTC time (GPS clock) of the video's first frame. Default: the time of the
     track's first point, i.e. the video and the track were started together
   - `time_offset_s`: seconds added to every frame time, if the video and GPS clocks don't match
   - `heading_offset_deg`: camera direction vs travel (0 = front, 90 = right)
-  - `route`: for a video without a track, the path the camera followed, start to end:
-    `[{"lat": 40.6412, "lon": -8.6538}, {"lat": 40.6425, "lon": -8.6531}, ...]` (2+ points)
   - `fov`, `camera_height_m`, `author`, `license`
 
-**Where the frame positions come from**, one of the two is required:
-
-| Source | When | `location_source` |
-| --- | --- | --- |
-| `track` | A GPX was sent | `track` |
-| `meta.route` | Phone videos and other cameras without a GPS log: the user draws the route on a map | `route` |
-
-Without either the API refuses the video (422 `No location for the video...`): ask the user
-for the GPX or to draw the route. Sending both is a 422 too. Positions from a route are
-approximate (constant speed is assumed along it): `location_source` in the response says which
-was used, so the web can warn about it. GPS stored inside the video file (GoPro, DJI,
+Without a GPX the API refuses the video (422). GPS stored inside the video file (GoPro, DJI,
 dashcams) isn't read: export it to GPX first (e.g. `exiftool -ee -p gpx.fmt video.mp4`).
 
 ```bash
-# with a GPX
-curl -F video=@ride.mp4 -F track=@ride.gpx -F 'meta={"spacing_m": 5}'      http://localhost:8000/api/v1/videos
-# phone video: route drawn on the map
-curl -F video=@walk.mp4      -F 'meta={"route": [{"lat": 40.6412, "lon": -8.6538}, {"lat": 40.6425, "lon": -8.6531}]}'      http://localhost:8000/api/v1/videos
+curl -F video=@ride.mp4 -F track=@ride.gpx -F 'meta={"spacing_m": 5}' http://localhost:8000/api/v1/videos
 ```
 
 ```php
-$request = Http::timeout(900)
-    ->attach('video', fopen($video->getRealPath(), 'r'), $video->getClientOriginalName());
-$meta = ['spacing_m' => 5];
-if ($gpx) {
-    $request = $request->attach('track', file_get_contents($gpx->getRealPath()), $gpx->getClientOriginalName());
-} else {  // drawn on the map: [['lat' => ..., 'lon' => ...], ...]
-    $meta['route'] = $route;
-}
-$response = $request->post("$api/api/v1/videos", ['meta' => json_encode($meta)]);
+$response = Http::timeout(900)
+    ->attach('video', fopen($video->getRealPath(), 'r'), $video->getClientOriginalName())
+    ->attach('track', file_get_contents($gpx->getRealPath()), $gpx->getClientOriginalName())
+    ->post("$api/api/v1/videos", ['meta' => json_encode(['spacing_m' => 5])]);
 ```
 
 **How it works** (`app/services/video_frames.py`, a port of ML's `extract-frames`, which the
 ML team also runs as a CLI):
 
-1. The track (or route) is measured: distance travelled at every point.
+1. The track is measured: distance travelled at every point.
 2. A spot every `spacing_m` metres along it gets a frame: its position is interpolated
    between the two GPS points around it, its heading is the direction of travel there
    (+ `heading_offset_deg`). Where the GPS stood still, the heading of the closest move is kept.
 3. Which frame: with GPS times, the one filmed when the GPS was at that spot (video second =
-   GPS time - `start_time` - `time_offset_s`); spots outside the video are dropped. With a
-   route, constant speed: the spot halfway along is the frame halfway through the video.
+   GPS time - `start_time` - `time_offset_s`); spots outside the video are dropped. A GPX
+   without times is taken at constant speed: the spot halfway along is the frame halfway
+   through the video.
 4. Each frame (JPEG) is sent to ML `POST /infer` like an uploaded image, with
    `source: "video"`, the video's `sequence_id` and `frame_index` 0, 1, 2...: ML blurs it and
    detects elements, the API stores it, then one `/dedup` runs for the whole video.
 
-The response is the same as for images, plus `sequence_id` and `location_source`, and
+The response is the same as for images, plus `sequence_id`, and
 `captured_at` of each frame is its GPS time. The video is only kept in a temporary file while
 its frames are read, never in the shared folder or the database. A video gives at most
 `MAX_VIDEO_FRAMES` frames (default 300, i.e. 1.5 km at 5 m): it's synchronous, one `/infer`
 per frame, so give the request a long timeout.
 
-Errors: 413 video too big; 422 bad `meta`, no track nor route, both, a GPX that can't be read,
+Errors: 413 video too big; 422 bad `meta`, no GPX (or an empty one), a GPX that can't be read,
 a video that can't be read, clocks that don't overlap (`No frame of the video falls on the GPS
 track...`), too many frames; 502 ML down. A frame ML refuses only fails that frame.
 

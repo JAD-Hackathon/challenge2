@@ -58,6 +58,12 @@ class Experimenta extends Component
 
     private function sendVideo($video): void
     {
+        // A API só posiciona os frames com o GPX gravado com o vídeo
+        if (! $this->track) {
+            $this->addError('track', 'Selecione o ficheiro GPX do vídeo.');
+            return;
+        }
+
         $response = API::sendFiles('videos', ['video' => $video, 'track' => $this->track]);
 
         if (! $response['ok']) {

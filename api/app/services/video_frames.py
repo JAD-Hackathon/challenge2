@@ -5,8 +5,7 @@ extract_video_frames). Each frame comes out as an UploadedImage, so it goes to M
 into the catalogue exactly like an uploaded image (source "video", one sequence_id,
 frame_index 0, 1, 2...).
 
-Positions come from the GPX track recorded with the video or, for a video without GPS, from the
-route drawn on a map (constant speed assumed, so approximate).
+Positions come from the GPX track recorded with the video.
 """
 
 import math
@@ -25,7 +24,7 @@ import cv2
 from app.core.config import settings
 from app.core.exceptions import InvalidInputError
 from app.schemas.image import ImageMeta, UploadedImage
-from app.schemas.video import LocationSource, RoutePoint, UploadedVideo, VideoMeta
+from app.schemas.video import UploadedVideo, VideoMeta
 
 EARTH_RADIUS_M = 6_371_008.8
 STILL_M = 0.3  # a GPS move shorter than this gives no direction of travel
@@ -36,7 +35,7 @@ JPEG_QUALITY = 92  # same as ML's extract_video_frames
 class TrackPoint:
     lat: float
     lon: float
-    time: datetime | None  # GPX <time>; None on a drawn route
+    time: datetime | None  # GPX <time>; None if the point has none
     dist_m: float = 0.0  # distance travelled since the first point
 
 
@@ -72,12 +71,7 @@ def parse_gpx(content: bytes) -> list[TrackPoint]:
             (_gpx_time(c.text) for c in elem if c.tag.endswith("time") and c.text), None
         )
         points.append((lat, lon, time))
-    return _measured(points, "track")
-
-
-def route_track(route: list[RoutePoint]) -> list[TrackPoint]:
-    """The path drawn on a map, start to end: a track without times."""
-    return _measured([(p.lat, p.lon, None) for p in route], "meta.route")
+    return _measured(points)
 
 
 def _gpx_time(text: str) -> datetime:
@@ -87,13 +81,11 @@ def _gpx_time(text: str) -> datetime:
         raise InvalidInputError(f"track: bad <time> {text.strip()!r}") from None
 
 
-def _measured(
-    points: list[tuple[float, float, datetime | None]], what: str
-) -> list[TrackPoint]:
+def _measured(points: list[tuple[float, float, datetime | None]]) -> list[TrackPoint]:
     if len(points) < 2:
-        raise InvalidInputError(f"{what}: needs at least 2 points, got {len(points)}")
+        raise InvalidInputError(f"track: needs at least 2 points, got {len(points)}")
     if any(not (-90 <= lat <= 90 and -180 <= lon <= 180) for lat, lon, _ in points):
-        raise InvalidInputError(f"{what}: a point is outside lat -90..90 / lon -180..180")
+        raise InvalidInputError("track: a point is outside lat -90..90 / lon -180..180")
     track = [TrackPoint(*points[0])]
     for lat, lon, time in points[1:]:
         prev = track[-1]
@@ -113,7 +105,7 @@ def place_frames(
     Timed track (a <time> on every GPX point): the frame at video second t was taken at GPS time
     start + t + meta.time_offset_s, where start is meta.start_time or, if not given, the track's
     first point (the recording and the track started together).
-    Without times (drawn route, GPX without <time>): constant speed over the whole video, first
+    Without times (GPX without <time>): constant speed over the whole video, first
     frame at the start of the track, last one at the end.
     """
     total_m = track[-1].dist_m
@@ -194,7 +186,6 @@ class VideoFrames:
 
     video: UploadedVideo
     sequence_id: str
-    location_source: LocationSource
     placements: list[Placement]
     _capture: cv2.VideoCapture = field(repr=False)
     _fps: float
@@ -243,13 +234,13 @@ class VideoFrames:
 
 @contextmanager
 def open_video(video: UploadedVideo, sequence_id: str) -> Iterator[VideoFrames]:
-    """Place the frames of `video` along its track or route, then hand them out.
+    """Place the frames of `video` along its GPS track, then hand them out.
 
-    Everything that can be refused (no location, bad GPX, unreadable video, clocks that don't
+    Everything that can be refused (bad GPX, unreadable video, clocks that don't
     overlap, too many frames) is refused here, before ML sees a single frame. OpenCV reads
     files, not streams, so the video sits in a temporary file until the block ends.
     """
-    track, location_source = _track(video)
+    track = parse_gpx(video.track)
     with tempfile.TemporaryDirectory(prefix="video_") as tmp:
         path = Path(tmp) / f"video{_suffix(video.filename)}"
         with path.open("wb") as out:
@@ -268,25 +259,13 @@ def open_video(video: UploadedVideo, sequence_id: str) -> Iterator[VideoFrames]:
                     "upload: raise spacing_m or cut the video"
                 )
             print(
-                f"[VIDEO] {sequence_id}: {len(placements)} frames placed with the "
-                f"{location_source}, {frame_count / fps:.1f} s of video at {fps:g} fps",
+                f"[VIDEO] {sequence_id}: {len(placements)} frames placed with the GPS "
+                f"track, {frame_count / fps:.1f} s of video at {fps:g} fps",
                 flush=True,
             )
-            yield VideoFrames(
-                video, sequence_id, location_source, placements, capture, fps, frame_count
-            )
+            yield VideoFrames(video, sequence_id, placements, capture, fps, frame_count)
         finally:
             capture.release()
-
-
-def _track(video: UploadedVideo) -> tuple[list[TrackPoint], LocationSource]:
-    if video.track is not None:
-        return parse_gpx(video.track), "track"
-    if video.meta.route:
-        return route_track(video.meta.route), "route"
-    raise InvalidInputError(
-        "No location for the video: send its GPS track (GPX) or draw its route (meta.route)"
-    )
 
 
 def _suffix(filename: str | None) -> str:

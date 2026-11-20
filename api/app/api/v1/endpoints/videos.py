@@ -12,14 +12,12 @@ router = APIRouter(prefix="/videos", tags=["videos"])
 def upload_video(
     db: SessionDep,
     video: VideoForm,
-    track: TrackForm = None,
+    track: TrackForm,
     meta: VideoMetaForm = "{}",
 ):
-    """Upload a street video (up to MAX_VIDEO_MB) with its GPS track, or the route it followed.
+    """Upload a street video (up to MAX_VIDEO_MB) with its GPS track.
 
-    Frame positions come from the `track` GPX or, for a video without GPS, from `meta.route`,
-    the path drawn on a map (approximate). One of the two is required (422 otherwise).
-    `location_source` in the response says which one was used.
+    Frame positions come from the `track` GPX recorded with the video (required).
 
     The API keeps one frame every `spacing_m` metres of travel (at most MAX_VIDEO_FRAMES) and
     sends each one to ML /infer like an uploaded image (`source` "video", one `sequence_id`,

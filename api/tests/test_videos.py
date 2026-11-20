@@ -1,5 +1,5 @@
 """Video upload: the API keeps one frame every spacing_m metres, places it with the GPS track
-(or the drawn route) and sends it to ML /infer like an uploaded image.
+and sends it to ML /infer like an uploaded image.
 
 Test videos are real mp4s (conftest.make_video: 6 s at 10 fps, frame n is grey 4 * n) and the
 track goes north at 5 m/s for 6 s (conftest.make_gpx): 30 m, one point per second.
@@ -19,7 +19,6 @@ from app.services import ml_client
 VIDEOS = "/api/v1/videos"
 T0 = datetime(2025, 6, 12, 10, 15, tzinfo=UTC)  # start of make_gpx's track
 M_PER_DEG_LAT = 111_195
-ROUTE = [{"lat": 40.6412, "lon": -8.6538}, {"lat": 40.6425, "lon": -8.6531}]  # ~156 m
 
 
 def post_video(client, video: bytes, meta: dict | None = None, track: bytes | None = None):
@@ -42,7 +41,7 @@ def test_video_frames_go_to_infer_and_are_stored(
     assert response.status_code == 200
     body = response.json()
     seq = body["sequence_id"]
-    assert seq.startswith("vid_") and body["location_source"] == "track"
+    assert seq.startswith("vid_")
 
     # one frame every 10 m of the 30 m track, each one an ordinary /infer call
     sent = ml_stub.inferred
@@ -80,25 +79,27 @@ def test_video_lined_up_with_the_track(client, ml_stub, make_video, make_gpx):
         assert [metres_north(c) for c in ml_stub.inferred] == [10, 20, 30]
 
 
-def test_video_placed_with_drawn_route(client, ml_stub, make_video):
-    meta = {"route": ROUTE, "spacing_m": 50, "heading_offset_deg": 90}
-    response = post_video(client, make_video(), meta)
+def test_video_placed_with_a_gpx_without_times(client, ml_stub, make_video, make_gpx):
+    gpx = re.sub(rb"<time>[^<]*</time>", b"", make_gpx())
+    meta = {"spacing_m": 10, "heading_offset_deg": 90}
+    response = post_video(client, make_video(), meta, track=gpx)
     assert response.status_code == 200
-    assert response.json()["location_source"] == "route"
 
-    sent = ml_stub.inferred  # 0, 50, 100, 150 m, spread over the video at constant speed
-    assert len(sent) == 4
-    assert (sent[0].lat, sent[0].lon) == (40.6412, -8.6538)
-    assert {round(c.heading) for c in sent} == {22 + 90}  # route goes NNE, camera looks right
+    sent = ml_stub.inferred  # 0, 10, 20, 30 m, spread over the video at constant speed
+    assert [metres_north(c) for c in sent] == [0, 10, 20, 30]
+    assert {c.heading for c in sent} == {90.0}  # going north, camera looks right
     frame = client.get(f"/api/v1/images/{sent[1].image_id}").json()
-    assert frame["captured_at"] is None  # no clock without a track
+    assert frame["captured_at"] is None  # no GPS clock
 
 
-def test_video_needs_a_track_or_a_route(client, ml_stub, make_video):
-    for track in (None, b""):  # a web form with the file input left empty sends b""
-        response = post_video(client, make_video(), track=track)
-        assert response.status_code == 422
-        assert response.json()["detail"].startswith("No location for the video")
+def test_video_needs_a_track(client, ml_stub, make_video):
+    missing = post_video(client, make_video())
+    assert missing.status_code == 422
+    assert missing.json()["detail"][0]["loc"] == ["body", "track"]
+
+    empty = post_video(client, make_video(), track=b"")  # file input left empty in a web form
+    assert empty.status_code == 422
+    assert empty.json()["detail"] == "track: the GPX file is empty"
     assert ml_stub.inferred == []
 
 
@@ -137,17 +138,9 @@ def test_video_validation(client, ml_stub, make_video, make_gpx):
     assert bad_meta.status_code == 422
     assert bad_meta.json()["detail"].startswith("meta.spacing_m")
 
-    one_point = post_video(client, video, {"route": ROUTE[:1]})
-    assert one_point.status_code == 422
-    assert one_point.json()["detail"].startswith("meta.route")
-
-    bad_point = post_video(client, video, {"route": [{"lat": 91, "lon": 0}] * 2})
+    bad_point = post_video(client, video, track=gpx.replace(b'lat="40.64000000"', b'lat="91"'))
     assert bad_point.status_code == 422
-    assert bad_point.json()["detail"].startswith("meta.route[0].lat")
-
-    both = post_video(client, video, {"route": ROUTE}, track=gpx)
-    assert both.status_code == 422
-    assert both.json()["detail"] == "Send either a GPS track or meta.route, not both"
+    assert bad_point.json()["detail"].startswith("track: a point is outside")
 
     no_video = client.post(VIDEOS, files=[("track", ("ride.gpx", gpx, "application/gpx+xml"))])
     assert no_video.status_code == 422

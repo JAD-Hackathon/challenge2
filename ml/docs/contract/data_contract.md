@@ -124,8 +124,7 @@ JSON contains only this relative path. API serves it to the frontend.
 
 No video endpoint in ML: video frames go through `/infer` like any image.
 
-1. The web uploads the video to the API (`POST /videos`) with its GPX track, or a route drawn on
-   the map for a video without GPS.
+1. The web uploads the video to the API (`POST /videos`) with its GPX track (required).
 2. The API picks a frame every ~5 m of travel and sets `lat`, `lon`, `heading` from the track
    (same algorithm as `ml extract-frames video.mp4 track.gpx`, ported to `api/app/services/video_frames.py`).
 3. The API sends each frame to `/infer` with `source: "video"`, the same `sequence_id` for the whole
