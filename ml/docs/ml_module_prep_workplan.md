@@ -165,18 +165,6 @@ Implement each behind a common `DistanceEstimator` interface returning `(distanc
 - [ ] Preserve `verified` and `corrected` elements from `existing_elements` untouched.
 - [ ] Fused confidence aggregation (detector scores, observation count, geometric consistency, capped at `max_confidence`).
 
-### Phase 7: Integration and robustness
-- [ ] Connect `dedup` logic to `POST /dedup` and disable mock mode (`service.mock: false`).
-- [ ] Config switch test for another zone/taxonomy file (`configs/taxonomy_pt.yaml`).
-- [ ] Performance check: end-to-end `/infer` + `/dedup` latency in Docker on target hardware.
-
-### Phase 8: Hackathon-readiness
-- [ ] README with a 5-command quickstart; Docker Compose tested cleanly (`ML_MOCK=false`).
-- [ ] All weights (`rtdetr_balanced_best/`, `*_cls.onnx`, `face.onnx`, `plate.onnx`) saved locally for 100% offline run.
-- [ ] Offline fallback dataset + precomputed `/infer` and `/dedup` JSON results for the Aveiro demo zone.
-- [ ] ML slides/input for the final PPT: architecture, models, datasets, licences (zero-AGPL), and limitations.
-- [ ] Dry-run with teammates: full flow from images → `/infer` → `/dedup` → map.
-
 ---
 
 ## 4. Priorities if time is short
