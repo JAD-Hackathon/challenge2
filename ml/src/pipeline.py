@@ -134,7 +134,7 @@ class InferencePipeline:
             )
             observations.append(
                 Observation(
-                    observation_id=uuid.uuid4().hex[:12],
+                    observation_id=f"{meta.image_id}:{uuid.uuid4().hex[:8]}",
                     type=detection.label,
                     score=round(detection.score, 4),
                     bbox_xyxy=[int(coord) for coord in detection.bbox_xyxy],

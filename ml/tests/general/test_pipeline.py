@@ -132,7 +132,9 @@ def test_observation_ids_unique_short_hex_and_order_kept(build, image, meta):
     pipe, s = build([det("sign.stop"), det("sign.other"), det("light.street_lamp")])
     obs = pipe.run(image, meta).observations
     ids = [o.observation_id for o in obs]
-    assert len(set(ids)) == 3 and all(re.fullmatch(r"[0-9a-f]{12}", i) for i in ids)
+    assert len(set(ids)) == 3 and all(
+        re.fullmatch(rf"{re.escape(meta.image_id)}:[0-9a-f]{{8}}", i) for i in ids
+    )
     assert [o.type for o in obs] == ["sign.stop", "sign.other", "light.street_lamp"]
     assert [c.class_name for c in s.localizer.calls] == [o.type for o in obs]
 

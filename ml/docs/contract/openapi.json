@@ -1,1 +1,515 @@
-{"openapi":"3.1.0","info":{"title":"Ctrl+F Aveiro ML service","version":"0.1.0"},"paths":{"/infer":{"post":{"summary":"Infer","operationId":"infer_infer_post","requestBody":{"content":{"multipart/form-data":{"schema":{"$ref":"#/components/schemas/Body_infer_infer_post"}}},"required":true},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"$ref":"#/components/schemas/InferResponse"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/dedup":{"post":{"summary":"Dedup","operationId":"dedup_dedup_post","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/DedupRequest"}}},"required":true},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"$ref":"#/components/schemas/DedupResponse"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/health":{"get":{"summary":"Health","operationId":"health_health_get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}}}}}},"components":{"schemas":{"Body_infer_infer_post":{"properties":{"image":{"type":"string","contentMediaType":"application/octet-stream","title":"Image","description":"JPEG/PNG image file"},"meta":{"type":"string","title":"Meta","description":"JSON string matching CameraMeta schema"}},"type":"object","required":["image","meta"],"title":"Body_infer_infer_post"},"CameraMeta":{"properties":{"image_id":{"type":"string","pattern":"^[A-Za-z0-9_-]{1,64}$","title":"Image Id"},"lat":{"type":"number","maximum":90.0,"minimum":-90.0,"title":"Lat"},"lon":{"type":"number","maximum":180.0,"minimum":-180.0,"title":"Lon"},"heading":{"type":"number","exclusiveMaximum":360.0,"minimum":0.0,"title":"Heading"},"fov":{"anyOf":[{"type":"number"},{"type":"null"}],"title":"Fov"},"camera_height_m":{"anyOf":[{"type":"number"},{"type":"null"}],"title":"Camera Height M"},"source":{"anyOf":[{"type":"string","enum":["mapillary","kartaview","video"]},{"type":"null"}],"title":"Source"},"sequence_id":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Sequence Id"},"frame_index":{"anyOf":[{"type":"integer"},{"type":"null"}],"title":"Frame Index"}},"type":"object","required":["image_id","lat","lon","heading"],"title":"CameraMeta"},"DedupRequest":{"properties":{"observations":{"items":{"$ref":"#/components/schemas/Observation"},"type":"array","title":"Observations"},"images":{"items":{"$ref":"#/components/schemas/CameraMeta"},"type":"array","title":"Images"},"existing_elements":{"items":{"$ref":"#/components/schemas/Element"},"type":"array","title":"Existing Elements","default":[]}},"type":"object","required":["observations","images"],"title":"DedupRequest"},"DedupResponse":{"properties":{"elements":{"items":{"$ref":"#/components/schemas/Element"},"type":"array","title":"Elements"},"unassigned_observation_ids":{"items":{"type":"string"},"type":"array","title":"Unassigned Observation Ids","default":[]},"removed_element_ids":{"items":{"type":"string"},"type":"array","title":"Removed Element Ids","default":[]}},"type":"object","required":["elements"],"title":"DedupResponse"},"Element":{"properties":{"element_id":{"type":"string","title":"Element Id"},"type":{"type":"string","title":"Type"},"lat":{"type":"number","title":"Lat"},"lon":{"type":"number","title":"Lon"},"confidence":{"type":"number","maximum":1.0,"minimum":0.0,"title":"Confidence"},"observation_ids":{"items":{"type":"string"},"type":"array","title":"Observation Ids"},"best_observation_id":{"type":"string","title":"Best Observation Id"},"status":{"type":"string","enum":["auto","verified","corrected","rejected"],"title":"Status","default":"auto"}},"type":"object","required":["element_id","type","lat","lon","confidence","observation_ids","best_observation_id"],"title":"Element"},"HTTPValidationError":{"properties":{"detail":{"items":{"$ref":"#/components/schemas/ValidationError"},"type":"array","title":"Detail"}},"type":"object","title":"HTTPValidationError"},"InferResponse":{"properties":{"image_id":{"type":"string","title":"Image Id"},"blurred_image_path":{"type":"string","title":"Blurred Image Path"},"observations":{"items":{"$ref":"#/components/schemas/Observation"},"type":"array","title":"Observations"}},"type":"object","required":["image_id","blurred_image_path","observations"],"title":"InferResponse"},"Observation":{"properties":{"observation_id":{"type":"string","title":"Observation Id"},"type":{"type":"string","title":"Type"},"score":{"type":"number","maximum":1.0,"minimum":0.0,"title":"Score"},"bbox_xyxy":{"items":{"type":"integer"},"type":"array","maxItems":4,"minItems":4,"title":"Bbox Xyxy"},"bearing_deg":{"anyOf":[{"type":"number"},{"type":"null"}],"title":"Bearing Deg"},"est_lat":{"anyOf":[{"type":"number"},{"type":"null"}],"title":"Est Lat"},"est_lon":{"anyOf":[{"type":"number"},{"type":"null"}],"title":"Est Lon"},"uncertainty_m":{"anyOf":[{"type":"number"},{"type":"null"}],"title":"Uncertainty M"}},"type":"object","required":["observation_id","type","score","bbox_xyxy"],"title":"Observation"},"ValidationError":{"properties":{"loc":{"items":{"anyOf":[{"type":"string"},{"type":"integer"}]},"type":"array","title":"Location"},"msg":{"type":"string","title":"Message"},"type":{"type":"string","title":"Error Type"},"input":{"title":"Input"},"ctx":{"type":"object","title":"Context"}},"type":"object","required":["loc","msg","type"],"title":"ValidationError"}}}}
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Ctrl+F Aveiro ML service",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/infer": {
+      "post": {
+        "summary": "Infer",
+        "description": "Run privacy redaction, 2-stage detection, and 3D localization on one image.",
+        "operationId": "infer_infer_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_infer_infer_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InferResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dedup": {
+      "post": {
+        "summary": "Dedup",
+        "description": "Cluster multi-view street observations into deduplicated physical Elements.",
+        "operationId": "dedup_dedup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DedupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DedupResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_infer_infer_post": {
+        "properties": {
+          "image": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Image",
+            "description": "JPEG/PNG image file"
+          },
+          "meta": {
+            "type": "string",
+            "title": "Meta",
+            "description": "JSON string matching CameraMeta schema"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image",
+          "meta"
+        ],
+        "title": "Body_infer_infer_post"
+      },
+      "CameraMeta": {
+        "properties": {
+          "image_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$",
+            "title": "Image Id"
+          },
+          "lat": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Lon"
+          },
+          "heading": {
+            "type": "number",
+            "exclusiveMaximum": 360.0,
+            "minimum": 0.0,
+            "title": "Heading"
+          },
+          "fov": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fov"
+          },
+          "camera_height_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Camera Height M"
+          },
+          "camera_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Camera Type"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "mapillary",
+                  "kartaview",
+                  "video"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "sequence_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sequence Id"
+          },
+          "frame_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frame Index"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image_id",
+          "lat",
+          "lon",
+          "heading"
+        ],
+        "title": "CameraMeta"
+      },
+      "DedupRequest": {
+        "properties": {
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/Observation"
+            },
+            "type": "array",
+            "title": "Observations"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/CameraMeta"
+            },
+            "type": "array",
+            "title": "Images"
+          },
+          "existing_elements": {
+            "items": {
+              "$ref": "#/components/schemas/Element"
+            },
+            "type": "array",
+            "title": "Existing Elements",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "observations",
+          "images"
+        ],
+        "title": "DedupRequest"
+      },
+      "DedupResponse": {
+        "properties": {
+          "elements": {
+            "items": {
+              "$ref": "#/components/schemas/Element"
+            },
+            "type": "array",
+            "title": "Elements"
+          },
+          "unassigned_observation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unassigned Observation Ids",
+            "default": []
+          },
+          "removed_element_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Removed Element Ids",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "elements"
+        ],
+        "title": "DedupResponse"
+      },
+      "Element": {
+        "properties": {
+          "element_id": {
+            "type": "string",
+            "title": "Element Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "title": "Lon"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          },
+          "observation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Observation Ids"
+          },
+          "best_observation_id": {
+            "type": "string",
+            "title": "Best Observation Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "verified",
+              "corrected",
+              "rejected"
+            ],
+            "title": "Status",
+            "default": "auto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "element_id",
+          "type",
+          "lat",
+          "lon",
+          "confidence",
+          "observation_ids",
+          "best_observation_id"
+        ],
+        "title": "Element"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "InferResponse": {
+        "properties": {
+          "image_id": {
+            "type": "string",
+            "title": "Image Id"
+          },
+          "blurred_image_path": {
+            "type": "string",
+            "title": "Blurred Image Path"
+          },
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/Observation"
+            },
+            "type": "array",
+            "title": "Observations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image_id",
+          "blurred_image_path",
+          "observations"
+        ],
+        "title": "InferResponse"
+      },
+      "Observation": {
+        "properties": {
+          "observation_id": {
+            "type": "string",
+            "title": "Observation Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "bbox_xyxy": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Bbox Xyxy"
+          },
+          "bearing_deg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bearing Deg"
+          },
+          "est_lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Est Lat"
+          },
+          "est_lon": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Est Lon"
+          },
+          "uncertainty_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uncertainty M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "observation_id",
+          "type",
+          "score",
+          "bbox_xyxy"
+        ],
+        "title": "Observation"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

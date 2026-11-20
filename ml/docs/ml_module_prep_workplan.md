@@ -92,7 +92,14 @@ ml/
 |   |       ├── geo.py                  # lat/lon ↔ ENU projection, bearing, destination point
 |   |       └── camera.py               # intrinsics, FOV, equirect -> perspective, ray bearing
 │   ├── dedup/                          # spatial-temporal deduplication & fusion
-│   │   └── utils/dedup_images.py       # image-level deduplication utilities
+│   │   ├── cluster.py                  # per-class ENU hierarchical clustering & same-frame split
+│   │   ├── deduplication.py            # main AssetDeduplicator orchestrator (locked vs auto)
+│   │   ├── geometry_check.py           # ray-consistency check & triangulated/ENU position
+│   │   ├── scoring.py                  # best observation selection & multi-view confidence fusion
+│   │   └── utils/
+│   │       ├── helpers.py              # image_id extraction, taxonomy lookup & ray builders
+│   │       └── dedup_images.py         # image-level deduplication utilities
+│   │       └── dedup_images.py         # image-level deduplication utilities
 │   ├── config.py                       # Pydantic settings loader & YAML/env overrides
 │   ├── taxonomy.py                     # Portuguese urban asset taxonomy & size priors
 │   ├── pipeline.py                     # end-to-end inference pipeline orchestrator
@@ -160,22 +167,11 @@ Implement each behind a common `DistanceEstimator` interface returning `(distanc
 - [✓] **Fusion strategy** (config): choose single method, or weighted combination by uncertainty, e.g. size prior + ground plane + depth, then refine with triangulation within clusters.
 
 ### Phase 6: Deduplication and confidence
-- [ ] Per-class spatial clustering with `dedup.radius_m` (`sign`, `light`, `waste`) + multi-view ray triangulation.
-- [ ] Ray-consistency check (`dedup.use_ray_check: true`) before merging observations.
-- [ ] Preserve `verified` and `corrected` elements from `existing_elements` untouched.
-- [ ] Fused confidence aggregation (detector scores, observation count, geometric consistency, capped at `max_confidence`).
-
-### Phase 7: Integration and robustness
-- [ ] Connect `dedup` logic to `POST /dedup` and disable mock mode (`service.mock: false`).
-- [ ] Config switch test for another zone/taxonomy file (`configs/taxonomy_pt.yaml`).
-- [ ] Performance check: end-to-end `/infer` + `/dedup` latency in Docker on target hardware.
-
-### Phase 8: Hackathon-readiness
-- [ ] README with a 5-command quickstart; Docker Compose tested cleanly (`ML_MOCK=false`).
-- [ ] All weights (`rtdetr_balanced_best/`, `*_cls.onnx`, `face.onnx`, `plate.onnx`) saved locally for 100% offline run.
-- [ ] Offline fallback dataset + precomputed `/infer` and `/dedup` JSON results for the Aveiro demo zone.
-- [ ] ML slides/input for the final PPT: architecture, models, datasets, licences (zero-AGPL), and limitations.
-- [ ] Dry-run with teammates: full flow from images → `/infer` → `/dedup` → map.
+- [✓] Per-class spatial clustering with `dedup.radius_m` (`sign`, `light`, `waste`) + multi-view ray triangulation.
+- [✓] Ray-consistency check (`dedup.use_ray_check: true`) before merging observations.
+- [✓] Preserve `verified` and `corrected` elements from `existing_elements` untouched.
+- [✓] Fused confidence aggregation (detector scores, observation count, geometric consistency, capped at `max_confidence`).
+- [✓] Connect `dedup` logic to `POST /dedup` and disable mock mode (`service.mock: false`).
 
 ---
 
