@@ -14,3 +14,6 @@ weights/*
 !weights/rtdetr_balanced_best/
 !weights/face.onnx
 !weights/plate.onnx
+!weights/lighting_cls.onnx
+!weights/sign_cls.onnx
+!weights/waste_cls.onnx
