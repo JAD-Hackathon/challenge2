@@ -58,6 +58,16 @@ Executive summary of architectural, data, modeling, and compliance decisions acr
 
 ---
 
-## 7. Conclusion & Team Handoff
-* **Status:** Stage-1 detection, Stage-2 fine-grained classification, GDPR privacy, and 3D geospatial localization modules are implemented, unit-tested (`pytest`), and license-audited.
-* **Weights Setup:** Place `rtdetr_balanced_best/`, `sign_cls.onnx`, `waste_cls.onnx`, `lighting_cls.onnx`, `face.onnx`, and `plate.onnx` in `ml/weights/` locally or mount at container runtime.
+## 7. Multi-View Deduplication & Asset Fusion (`src/dedup/`)
+* **Decision:** Merge repeated multi-frame sightings into unique physical `Elements` (`POST /dedup`) using per-category spatial clustering, ray-consistency filtering, and weighted least-squares triangulation while strictly preserving human-reviewed records.
+* **Implementation:**
+  * **Human-Curated Record Protection (`deduplication.py`):** Partitions `existing_elements` by status—leaving `verified`, `corrected`, and `rejected` coordinates/labels immutable while attaching nearby matching observations (`observation_ids`) and cleanly recomputing `auto` elements with stable `element_id` reuse.
+  * **Per-Class Spatial Clustering & Same-Frame Separation (`cluster.py`):** Groups detections strictly by fine-grained taxonomy type (`obs.type`) and applies complete-linkage hierarchical clustering in local metric coordinates (`LocalENU`) using category-specific radii (`sign: 2.5 m`, `light: 4.0 m`, `waste: 5.0 m`), while preventing merges between two detections from the same `image_id`.
+  * **Ray-Consistency & Multi-View Triangulation (`geometry_check.py`):** Rejects merges whose viewing rays diverge under wide parallax ($\ge 15^\circ$) and refines multi-angle cluster coordinates via `triangulate_rays(...)` with inverse-variance ENU centroid fallback for collinear views.
+  * **Confidence Fusion & Best-View Selection (`scoring.py`):** Selects `best_observation_id` by highest detector score (tie-broken by lowest `uncertainty_m`) and aggregates multi-view confidence via damped noisy-OR reinforcement capped at `max_confidence: 0.99`.
+
+---
+
+## 8. Conclusion & Team Handoff
+* **Status:** Stage-1 detection, Stage-2 fine-grained classification, GDPR privacy, 3D geospatial localization, multi-view deduplication, and FastAPI endpoints (`/infer`, `/dedup`, `/health`) are implemented, unit-tested (`pytest`), and license-audited.
+* **Weights Setup:** Place `rtdetr_balanced_best/`, `sign_cls.onnx`, `waste_cls.onnx`, `lighting_cls.onnx`, `face.onnx`, and `plate.onnx` in `ml/weights/` locally or mount read-only at container runtime.
