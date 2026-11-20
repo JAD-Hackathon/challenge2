@@ -65,6 +65,7 @@ Between the **API** and the **ML service**. Two endpoints. Change anything → t
   ]
 }
 ```
+- `observation_id`: unique per observation and consist of <image_id>:<uuid4.hex[:8]>, used in `/dedup`.
 - No detections → `"observations": []` (not an error).
 - If the position can't be computed, `est_lat`, `est_lon`, `uncertainty_m` are `null`.
 - No crop files: the frontend shows the detection by cropping the blurred image with `bbox_xyxy`.
