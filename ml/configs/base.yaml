@@ -17,7 +17,7 @@ privacy:
 detection:
   backend: rtdetr
   weights: rtdetr_balanced_best
-  conf: 0.40
+  conf: 0.35
   iou: 0.50
   imgsz: 960
   device: auto                          # auto | cpu | cuda:0
