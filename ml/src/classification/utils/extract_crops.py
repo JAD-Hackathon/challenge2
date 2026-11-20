@@ -8,18 +8,14 @@ from PIL import Image
 
 from src.config import Settings, load_settings
 from src.detection.utils.helpers import yolo_to_xyxy
+from src.detection.training.common.dataset import STAGE1_ID2LABEL
 
 _IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
 
 
 def category_by_class_id(settings: Settings) -> dict[int, str]:
     """Derive class_id -> super-category mapping from detection.class_map order."""
-    seen: list[str] = []
-    for target in settings.detection.class_map.values():
-        cat = target.split(".", 1)[0]
-        if cat not in seen:
-            seen.append(cat)
-    return dict(enumerate(seen))
+    return {i: name.split(".", 1)[0] for i, name in STAGE1_ID2LABEL.items()}
 
 
 def build_image_index(search_dirs: list[Path]) -> dict[str, Path]:
