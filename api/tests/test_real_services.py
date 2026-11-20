@@ -155,28 +155,29 @@ def test_ingest_batch_ml_down_saves_nothing(
     assert not (shared_dir / "images" / "first.jpg").exists()  # blurred copy cleaned up
 
 
-def test_ingest_video(stub_queries, ml_stub, shared_dir):
+def test_ingest_video(stub_queries, ml_stub, shared_dir, make_video, make_gpx):
     import io
 
     db = FakeSession()
     video = UploadedVideo(
-        file=io.BytesIO(b"mp4"), filename="ride.mp4", content_type="video/mp4", track=b"<gpx/>",
-        meta=VideoMeta(author="team"),
+        file=io.BytesIO(make_video()), filename="ride.mp4", content_type="video/mp4",
+        track=make_gpx(), meta=VideoMeta(spacing_m=10, author="team"),
     )  # fmt: skip
     result = ingest.ingest_video(db, video)
 
     images = db.of(Image)
-    assert [i.id for i in images] == [f"{result.sequence_id}_{n:04d}" for n in range(3)]
+    assert [i.id for i in images] == [f"{result.sequence_id}_{n:04d}" for n in range(4)]
     assert {(i.source, i.sequence_id, i.author) for i in images} == {
         ("video", result.sequence_id, "team")
     }
-    assert [i.frame_index for i in images] == [0, 1, 2]
+    assert [i.frame_index for i in images] == [0, 1, 2, 3]
+    assert [c.image_id for c in ml_stub.inferred] == [i.id for i in images]  # via /infer
     assert len(ml_stub.dedups) == 1 and db.commits == 1
     assert {e.type for e in result.elements} == {"speed_limit", "street_lamp"}
 
 
 def test_ingest_video_ml_down_saves_nothing(
-    stub_queries, ml_stub, monkeypatch, shared_dir
+    stub_queries, ml_stub, monkeypatch, shared_dir, make_video, make_gpx
 ):
     import io
 
@@ -186,15 +187,15 @@ def test_ingest_video_ml_down_saves_nothing(
     monkeypatch.setattr(ml_client, "dedup", dedup_down)
     db = FakeSession()
     video = UploadedVideo(
-        io.BytesIO(b"mp4"), "v.mp4", "video/mp4", b"<gpx/>", VideoMeta()
+        io.BytesIO(make_video()), "v.mp4", "video/mp4", make_gpx(), VideoMeta()
     )
     with pytest.raises(MLServiceError):
         ingest.ingest_video(db, video)
     assert db.rolled_back and db.commits == 0
-    sequence_id = ml_stub.videos[-1][2].sequence_id
+    sequence_id = ml_stub.inferred[-1].sequence_id
     assert not list(
         (shared_dir / "images").glob(f"{sequence_id}_*")
-    )  # ML's frames cleaned up
+    )  # ML's blurred frames cleaned up
 
 
 # --- dedup ---

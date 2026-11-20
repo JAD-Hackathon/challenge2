@@ -1,12 +1,13 @@
 """Mock of app/services/ingest.py and app/services/image.py.
 
 Uploads go to the real ML service (run it with ML_MOCK=true, its default): /infer for each
-image or /infer-video for a video, then one /dedup, exactly like real mode. Only the database is
+image or video frame, then one /dedup, exactly like real mode. Only the database is
 replaced, by the in-memory store. ML writes the blurred images to the shared folder, so
 SHARED_DIR must be the same folder ML uses (both in Docker, or both run locally).
 """
 
 import uuid
+from collections.abc import Iterable
 from datetime import datetime
 
 from app.mocks.store import new_element, now, store
@@ -23,11 +24,11 @@ from app.schemas.image import (
     new_image_id,
 )
 from app.schemas.video import UploadedVideo, VideoResponse, new_sequence_id
-from app.services import media, ml_client
+from app.services import media, ml_client, video_frames
 from app.services.ml_client import MLInputError
 
 
-def ingest_batch(uploads: list[UploadedImage]) -> BatchResponse:
+def ingest_batch(uploads: Iterable[UploadedImage]) -> BatchResponse:
     collected = _Collected()
     results: list[ImageResult] = []
     for upload in uploads:
@@ -80,23 +81,13 @@ def ingest_batch(uploads: list[UploadedImage]) -> BatchResponse:
 
 
 def ingest_video(video: UploadedVideo) -> VideoResponse:
-    result = ml_client.infer_video(video, new_sequence_id())
-    collected = _Collected()
-    results: list[ImageResult] = []
-    for index, frame in enumerate(result.frames):
-        filename = video.frame_filename(frame.camera.frame_index)
-        image = collected.add(
-            frame.camera, frame.blurred_image_path, frame.observations,
-            filename=filename, author=video.meta.author, license=video.meta.license,
-            captured_at=frame.captured_at,
-        )  # fmt: skip
-        base = {"index": index, "filename": filename, "image_id": image.id}
-        results.append(_processed(base, image, frame.observations))
+    sequence_id = new_sequence_id()
+    with video_frames.open_video(video, sequence_id) as frames:
+        batch = ingest_batch(frames)
     return VideoResponse(
-        images=results,
-        elements=collected.save(),
-        sequence_id=result.sequence_id,
-        location_source=result.location_source,
+        **dict(batch),
+        sequence_id=sequence_id,
+        location_source=frames.location_source,
     )
 
 

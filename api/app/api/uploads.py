@@ -5,9 +5,9 @@ POST /images  images: file (repeat once per image)
                         {"lat": 40.64, "lon": -8.65, "heading": 90, ...}   ImageMeta
                         {"mapillary": {<Mapillary API v4 image record>}}
                         {"kartaview": {<KartaView API v2 photo record>}}
-POST /videos  video:  file (streamed to ML, never read into memory)
-              track:  GPX file recorded during the video (optional, passed to ML as is)
-              meta:   '{"spacing_m": 5, ...}' (optional; "route" for a video without GPS)
+POST /videos  video:  file (only kept in a temporary file while its frames are read)
+              track:  GPX file recorded during the video
+              meta:   '{"spacing_m": 5, ...}' (optional; "route" for a video without a track)
 """
 
 from typing import Annotated, Any
@@ -46,15 +46,14 @@ MetasForm = Annotated[
 VideoForm = Annotated[
     UploadFile,
     File(
-        description="Video (mp4, mov, ...), up to MAX_VIDEO_MB. Passed to ML, never saved."
+        description="Video (mp4, mov, ...), up to MAX_VIDEO_MB. Never saved."
     ),
 ]
 TrackForm = Annotated[
     UploadFile | None,
     File(
-        description="Optional GPS track recorded during the video: GPX with a <time> on each "
-        "point. Leave out when the video stores its own GPS (GoPro, DJI, dashcams...), or send "
-        "meta.route instead"
+        description="GPS track recorded during the video: GPX with a <time> on each point "
+        "(any GPS logger app exports it). Without one, send meta.route instead"
     ),
 ]
 VideoMetaForm = Annotated[
@@ -133,8 +132,7 @@ def _image_meta(index: int, item: dict[str, Any]) -> ImageMeta | str:
 
 
 def read_video(video: UploadFile, track: UploadFile | None, meta: str) -> UploadedVideo:
-    """Without a track, ML uses the GPS stored in the video, else meta.route, else refuses
-    (only ML can tell: the API streams the video without opening it)."""
+    """The form as it came. The track itself is read with the video (services/video_frames)."""
     if (video.size or 0) > settings.MAX_VIDEO_MB * 1024 * 1024:
         raise TooLargeError(f"The video is bigger than {settings.MAX_VIDEO_MB} MB")
     try:

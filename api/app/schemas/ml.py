@@ -6,7 +6,6 @@ short hex ids); element_id must be a UUID (contract rule).
 """
 
 import uuid
-from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -70,46 +69,3 @@ class DedupResponse(BaseModel):
     unassigned_observation_ids: list[str] = []
     removed_element_ids: list[uuid.UUID] = []
 
-
-# --- Proposed: POST /infer-video (not in ML yet, see "Video" in api/README.md) ---
-# Multipart: `video` file, optional `track` GPX file, `meta` = VideoInferMeta as JSON.
-# Frame positions, first that exists: `track` > GPS stored in the video > `meta.route`.
-
-# Where ML got the frame positions: GPX sent with the video, GPS stored in the video file
-# (GoPro, DJI, dashcams...), or the route drawn on a map (approximate: constant speed assumed)
-LocationSource = Literal["track", "embedded", "route"]
-
-
-class RoutePoint(BaseModel):
-    lat: float = Field(ge=-90, le=90)
-    lon: float = Field(ge=-180, le=180)
-
-
-class VideoInferMeta(BaseModel):
-    sequence_id: str = Field(
-        pattern=r"^[A-Za-z0-9_-]{1,48}$"
-    )  # frame ids: <sequence_id>_<index>
-    spacing_m: float = 5.0  # one frame every N metres of travel
-    start_time: datetime | None = (
-        None  # UTC time of the first frame; null -> ML decides
-    )
-    time_offset_s: float = 0.0  # shift to line the video up with the GPS clock
-    heading_offset_deg: float = 0.0  # camera vs direction of travel: 0 front, 90 right
-    fov: float | None = None
-    camera_height_m: float | None = None
-    route: list[RoutePoint] | None = None  # only without a track: path start to end
-
-
-class InferredFrame(BaseModel):
-    """One frame ML kept: where it was taken + the same fields as an /infer response."""
-
-    camera: CameraMeta  # image_id, lat, lon, heading, source "video", sequence_id, frame_index
-    captured_at: datetime | None = None
-    blurred_image_path: str  # relative to SHARED_DIR
-    observations: list[Observation]
-
-
-class InferVideoResponse(BaseModel):
-    sequence_id: str
-    location_source: LocationSource | None = None
-    frames: list[InferredFrame]

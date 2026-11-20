@@ -15,6 +15,8 @@ os.environ["API_MOCK"] = "true"
 os.environ["SHARED_DIR"] = tempfile.mkdtemp(prefix="api-tests-shared-")
 os.environ["MEDIA_URL"] = "/media"
 
+import cv2  # noqa: E402
+import numpy as np  # noqa: E402
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from PIL import Image, UnidentifiedImageError  # noqa: E402
@@ -22,7 +24,6 @@ from PIL import Image, UnidentifiedImageError  # noqa: E402
 from app.main import app  # noqa: E402
 from app.mocks.store import store  # noqa: E402
 from app.schemas import ml  # noqa: E402
-from app.schemas.video import UploadedVideo  # noqa: E402
 from app.services import media, ml_client  # noqa: E402
 from app.services.ml_client import MLInputError, MLServiceError  # noqa: E402
 
@@ -48,16 +49,11 @@ class MLStub:
     """Behaves like the ML service in mock mode (ml/src/service/mock.py), without HTTP:
     ids derived from image_id / first observation, blurred copy written to the shared folder.
     Every image gets a speed_limit sign ({"limit": 50}) and a street lamp.
-
-    infer_video stands for the proposed /infer-video: 3 frames, 5 m apart, going north.
-    Placed with the track, else the GPS in the video (all but b"no gps"), else meta.route."""
+    Video frames come through infer() too, like in the app."""
 
     def __init__(self) -> None:
         self.inferred: list[ml.CameraMeta] = []
         self.dedups: list[ml.DedupRequest] = []
-        self.videos: list[
-            tuple[bytes, bytes | None, ml.VideoInferMeta]
-        ] = []  # video, track, meta
 
     def infer(self, image: bytes, meta: ml.CameraMeta, content_type="image/jpeg"):
         if image == b"ML down":
@@ -72,45 +68,6 @@ class MLStub:
         media.images_dir().mkdir(parents=True, exist_ok=True)
         picture.save(media.images_dir() / f"{meta.image_id}.jpg")
         return self._detections(meta)
-
-    def infer_video(
-        self, video: UploadedVideo, sequence_id: str
-    ) -> ml.InferVideoResponse:
-        content = video.file.read()  # what would be streamed to ML
-        if content == b"not a video":
-            raise MLInputError("ML unsupported_video: could not read the video")
-        if video.track is not None:
-            location_source = "track"
-        elif content != b"no gps":
-            location_source = "embedded"
-        elif video.meta.route:
-            location_source = "route"
-        else:
-            raise MLInputError("ML no_location: no GPS track, no GPS in the video, no route")
-        self.videos.append((content, video.track, video.meta.for_ml(sequence_id)))
-        frames = []
-        for i in range(3):
-            camera = ml.CameraMeta(
-                image_id=f"{sequence_id}_{i:04d}", lat=40.64 + i * 5 / 111_195, lon=-8.65,
-                heading=0, fov=video.meta.fov, source="video", sequence_id=sequence_id,
-                frame_index=i,
-            )  # fmt: skip
-            media.images_dir().mkdir(parents=True, exist_ok=True)
-            Image.new("RGB", (320, 240), "grey").save(
-                media.images_dir() / f"{camera.image_id}.jpg"
-            )
-            inferred = self._detections(camera)
-            frames.append(
-                ml.InferredFrame(
-                    camera=camera,
-                    captured_at=T0 + timedelta(seconds=i),
-                    blurred_image_path=inferred.blurred_image_path,
-                    observations=inferred.observations,
-                )
-            )
-        return ml.InferVideoResponse(
-            sequence_id=sequence_id, location_source=location_source, frames=frames
-        )
 
     def _detections(self, meta: ml.CameraMeta) -> ml.InferResponse:
         rng = random.Random(meta.image_id)
@@ -161,7 +118,6 @@ def ml_stub(monkeypatch) -> MLStub:
     stub = MLStub()
     monkeypatch.setattr(ml_client, "infer", stub.infer)
     monkeypatch.setattr(ml_client, "dedup", stub.dedup)
-    monkeypatch.setattr(ml_client, "infer_video", stub.infer_video)
     return stub
 
 
@@ -195,3 +151,17 @@ def _gpx(seconds: int = 6, speed_mps: float = 5.0, start: datetime = T0) -> byte
 @pytest.fixture
 def make_gpx():
     return _gpx
+
+
+def _video(path: Path, seconds: int = 6, fps: int = 10) -> bytes:
+    """A real mp4: `seconds` long, each frame a different grey (frame n = 4 * n)."""
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), fps, (320, 240))
+    for n in range(seconds * fps):
+        writer.write(np.full((240, 320, 3), 4 * n % 256, np.uint8))
+    writer.release()
+    return path.read_bytes()
+
+
+@pytest.fixture
+def make_video(tmp_path):
+    return lambda seconds=6, fps=10: _video(tmp_path / "ride.mp4", seconds, fps)

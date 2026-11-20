@@ -122,13 +122,18 @@ JSON contains only this relative path. API serves it to the frontend.
 
 ## 4. Video
 
-Video is handled **outside the API**, by an ML script, before or alongside the demo. No video endpoint.
+No video endpoint in ML: video frames go through `/infer` like any image.
 
-1. Run `ml extract-frames video.mp4 track.gpx` (picks a frame every ~5 m of travel, sets `lat`, `lon`, `heading` from the GPS log).
-2. The script sends each frame to `/infer` with `source: "video"`, the same `sequence_id` for the whole video and `frame_index` 0, 1, 2…
-3. The API stores the results like any other image.
+1. The web uploads the video to the API (`POST /videos`) with its GPX track, or a route drawn on
+   the map for a video without GPS.
+2. The API picks a frame every ~5 m of travel and sets `lat`, `lon`, `heading` from the track
+   (same algorithm as `ml extract-frames video.mp4 track.gpx`, ported to `api/app/services/video_frames.py`).
+3. The API sends each frame to `/infer` with `source: "video"`, the same `sequence_id` for the whole
+   video and `frame_index` 0, 1, 2… (`image_id` = `<sequence_id>_<frame_index>`), stores the
+   results like any other image and runs one `/dedup` for the whole video.
 
-The raw video stays on our machines only (not in the shared folder, DB or UI). If you later want users to upload videos in the UI, we add an upload endpoint.
+The raw video stays in a temporary file on the API only while its frames are read (not in the
+shared folder, DB or UI). `ml extract-frames` stays available to process a video offline.
 
 ---
 

@@ -187,8 +187,6 @@ def test_flag_unknown_element_is_404(client):
 
 
 def test_export_geojson_and_csv(client):
-    assert client.get("/api/v1/export/layers").json()[0]["table"] == "elements"
-
     geojson = client.get("/api/v1/export/elements.geojson").json()
     assert len(geojson["features"]) == 12  # every status, like the real export
     feature = next(

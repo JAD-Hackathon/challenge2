@@ -1,12 +1,13 @@
 """Uploads -> ML -> one ML /dedup for the whole upload -> catalogue.
 
 POST /images: ML /infer for each image. A file ML refuses only fails that item.
-POST /videos: ML /infer-video picks the frames (with the GPS track) and returns each one like an
-              /infer result. The API only stores them.
+POST /videos: the API picks one frame every spacing_m metres and places it with the GPS track
+              (or the drawn route), see video_frames.py. Then each frame is an image like
+              any other: ML /infer, stored, one /dedup for the whole video.
 Either way, if ML is down the whole upload fails and nothing is saved.
 """
 
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -28,13 +29,13 @@ from app.schemas.image import (
     new_image_id,
 )
 from app.schemas.video import UploadedVideo, VideoResponse, new_sequence_id
-from app.services import media, ml_client
+from app.services import media, ml_client, video_frames
 from app.services.dedup import DedupResult, PendingObservations, run_dedup
 from app.services.element import to_element_read
 from app.services.ml_client import MLInputError
 
 
-def ingest_batch(db: Session, uploads: list[UploadedImage]) -> BatchResponse:
+def ingest_batch(db: Session, uploads: Iterable[UploadedImage]) -> BatchResponse:
     with _all_or_nothing(db) as work:
         results = [_infer_one(db, work, upload) for upload in uploads]
         dedup = run_dedup(db, work.pending)
@@ -42,44 +43,14 @@ def ingest_batch(db: Session, uploads: list[UploadedImage]) -> BatchResponse:
 
 
 def ingest_video(db: Session, video: UploadedVideo) -> VideoResponse:
-    with _all_or_nothing(db) as work:
-        result = ml_client.infer_video(video, new_sequence_id())
-        print(
-            f"[INGEST] video {result.sequence_id}: {len(result.frames)} frames, "
-            f"location_source={result.location_source}",
-            flush=True,
-        )
-        results = []
-        for index, frame in enumerate(result.frames):
-            print(
-                f"[INGEST]   frame {frame.camera.frame_index} ({frame.camera.image_id}) "
-                f"at ({frame.camera.lat}, {frame.camera.lon}): "
-                f"{[(o.type, round(o.score, 2)) for o in frame.observations]}",
-                flush=True,
-            )
-            filename = video.frame_filename(frame.camera.frame_index)
-            base = {
-                "index": index,
-                "filename": filename,
-                "image_id": frame.camera.image_id,
-            }
-            if image_repo.image_exists(db, frame.camera.image_id):
-                results.append(ImageResult(**base, status=ImageStatus.DUPLICATE))
-                continue
-            _save_image(
-                db, work, frame.camera, frame.blurred_image_path, frame.observations,
-                filename=filename, author=video.meta.author, license=video.meta.license,
-                captured_at=frame.captured_at,
-            )  # fmt: skip
-            results.append(
-                _processed(base, frame.blurred_image_path, frame.observations)
-            )
-        dedup = run_dedup(db, work.pending)
+    """The frames, placed along the track / route, go through ingest_batch like images."""
+    sequence_id = new_sequence_id()
+    with video_frames.open_video(video, sequence_id) as frames:
+        batch = ingest_batch(db, frames)
     return VideoResponse(
-        images=results,
-        sequence_id=result.sequence_id,
-        location_source=result.location_source,
-        **_changes(db, dedup),
+        **dict(batch),
+        sequence_id=sequence_id,
+        location_source=frames.location_source,
     )
 
 

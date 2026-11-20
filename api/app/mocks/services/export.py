@@ -23,10 +23,6 @@ COLUMNS = [
 ]  # fmt: skip
 
 
-def list_layers() -> list[dict[str, Any]]:
-    return [LAYER]
-
-
 def export_geojson(
     table: str, schema: str = "public", bbox: str | None = None
 ) -> tuple[str, str]:

@@ -1,4 +1,5 @@
-"""HTTP client for the ML service (POST /infer, POST /dedup, POST /infer-video)."""
+"""HTTP client for the ML service (POST /infer, POST /dedup). Video frames go through /infer
+like uploaded images (see services/video_frames.py)."""
 
 import json
 from pathlib import Path
@@ -13,9 +14,7 @@ from app.schemas.ml import (
     DedupRequest,
     DedupResponse,
     InferResponse,
-    InferVideoResponse,
 )
-from app.schemas.video import UploadedVideo
 from app.services import media
 
 
@@ -112,35 +111,6 @@ def dedup(request: DedupRequest) -> DedupResponse:
     )
     response = _post("/dedup", json=request.model_dump(mode="json"))
     return _parse(DedupResponse, response)
-
-
-def infer_video(video: UploadedVideo, sequence_id: str) -> InferVideoResponse:
-    """ML picks the frames and places them (GPX track > GPS in the video > meta.route), then
-    blurs + detects each one.
-
-    Proposed endpoint, see "Video" in api/README.md. The video is streamed, not loaded in memory.
-    """
-    files = {
-        "video": (
-            video.filename or "video.mp4",
-            video.file,
-            video.content_type or "application/octet-stream",
-        )
-    }
-    if video.track is not None:
-        files["track"] = ("track.gpx", video.track, "application/gpx+xml")
-    print(
-        f"\n[ML] /infer-video request: sequence_id={sequence_id} file={video.filename!r} "
-        f"track={'yes' if video.track is not None else 'no'}",
-        flush=True,
-    )
-    response = _post(
-        "/infer-video",
-        timeout=settings.ML_VIDEO_TIMEOUT_S,
-        files=files,
-        data={"meta": video.meta.for_ml(sequence_id).model_dump_json()},
-    )
-    return _parse(InferVideoResponse, response)
 
 
 def blurred_image_file(result: InferResponse) -> Path:

@@ -8,12 +8,6 @@ from fastapi.responses import Response, StreamingResponse
 router = APIRouter(prefix="/export", tags=["export"])
 
 
-@router.get("/layers")
-@mirrors(real.list_layers)
-def list_layers():
-    return service.list_layers()
-
-
 @router.get("/{table}.geojson")
 @mirrors(real.export_geojson)
 def export_geojson(table: str, bbox: BBoxQuery = None, schema: SchemaQuery = "public"):
