@@ -34,7 +34,7 @@ class TriangulatedPoint(_TriangulationModel):
     max_ray_angle_deg: float = Field(ge=0.0)
 
 
-def _max_pairwise_angle_deg(bearings_deg: Sequence[float]) -> float:
+def max_pairwise_angle_deg(bearings_deg: Sequence[float]) -> float:
     """Compute the largest acute/obtuse intersection angle between any pair of rays."""
     max_angle = 0.0
     n = len(bearings_deg)
@@ -72,7 +72,7 @@ def triangulate_rays(
     if len(rays) < 2:
         return None
 
-    max_angle = _max_pairwise_angle_deg([ray.bearing_deg for ray in rays])
+    max_angle = max_pairwise_angle_deg([ray.bearing_deg for ray in rays])
     if max_angle < min_angle_deg:
         return None
 
