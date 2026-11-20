@@ -1,6 +1,10 @@
 @section('title', 'Home')
 <div>
     @include('layouts.css')
+    @php
+        $type = session('login')['type'] ?? null;
+    @endphp
+
     <header class="home-header">
         <div class="home-auth">
             @if (session('login'))
@@ -20,10 +24,14 @@
     <nav class="home-nav">
         <button type="button" class="home-nav-btn {{ $aba == '1' ? 'active' : '' }}" wire:click="changeAba('1')">Página
             Inicial</button>
-        <button type="button" class="home-nav-btn {{ $aba == '2' ? 'active' : '' }}"
-            wire:click="changeAba('2')">Experimenta</button>
-        <button type="button" class="home-nav-btn {{ $aba == '3' ? 'active' : '' }}"
-            wire:click="changeAba('3')">Catálogo</button>
+        @if ($type == 1 || $type == 2)
+            <button type="button" class="home-nav-btn {{ $aba == '2' ? 'active' : '' }}"
+                wire:click="changeAba('2')">Experimenta</button>
+            @if ($type == 2)
+                <button type="button" class="home-nav-btn {{ $aba == '3' ? 'active' : '' }}"
+                    wire:click="changeAba('3')">Catálogo</button>
+            @endif
+        @endif
     </nav>
 
     {{-- MODAL: login (aberto com $showLogin) --}}
@@ -40,8 +48,9 @@
                     <div class="modal-body">
                         <div class="mb-3">
                             <label for="loginEmail" class="form-label">Email</label>
-                            <input type="email" id="loginEmail" class="form-control @error('email') is-invalid @enderror"
-                                wire:model="email" autocomplete="username" autofocus>
+                            <input type="email" id="loginEmail"
+                                class="form-control @error('email') is-invalid @enderror" wire:model="email"
+                                autocomplete="username" autofocus>
                             @error('email')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -72,27 +81,19 @@
         <div class="modal-backdrop fade show" wire:click="closeLogin"></div>
     @endif
 
-    @php 
-
-        $session = session('login')
-
-    @endphp 
-
-    {{ $session }}
     {{-- Cada separador é um componente: app/Http/Livewire/Home/Tabs/*.php --}}
     <div class="container py-4">
         @if ($aba == '1')
             <livewire:home.tabs.mapa key="tab-mapa" />
-        @elseif ($aba == '2')
+        @elseif ($aba == '2' && ($type = 1))
             <livewire:home.tabs.experimenta key="tab-experimenta" />
-        @elseif ($aba == '3')
+        @elseif ($aba == '3' && ($type = 1))
             <livewire:home.tabs.catalogo key="tab-catalogo" />
         @endif
     </div>
 </div>
 
 @push('scripts')
-
     <script>
         let map = null;
 
@@ -105,7 +106,7 @@
             });
         }
 
-        window.openPhotoLightbox = function (src, boxes = []) {
+        window.openPhotoLightbox = function(src, boxes = []) {
             const overlay = document.createElement('div');
             overlay.className = 'photo-lightbox';
             overlay.setAttribute('role', 'dialog');
@@ -120,7 +121,8 @@
             frame.appendChild(img);
 
             img.addEventListener('load', () => {
-                const w = img.naturalWidth, h = img.naturalHeight;
+                const w = img.naturalWidth,
+                    h = img.naturalHeight;
                 boxes.forEach((b) => {
                     const [x1, y1, x2, y2] = b.bbox;
                     const box = document.createElement('div');
@@ -205,7 +207,8 @@
 
                     img.addEventListener('load', () => {
                         const [x1, y1, x2, y2] = p.bbox;
-                        const w = img.naturalWidth, h = img.naturalHeight;
+                        const w = img.naturalWidth,
+                            h = img.naturalHeight;
                         Object.assign(box.style, {
                             left: `${x1 / w * 100}%`,
                             top: `${y1 / h * 100}%`,
@@ -223,7 +226,11 @@
                 photo.title = 'Clique para ver em grande';
                 photo.style.cursor = 'zoom-in';
                 photo.addEventListener('click', () => openPhotoLightbox(p.image_url,
-                    p.bbox ? [{ bbox: p.bbox, label: p.name, color: p.color }] : []));
+                    p.bbox ? [{
+                        bbox: p.bbox,
+                        label: p.name,
+                        color: p.color
+                    }] : []));
                 root.appendChild(photo);
 
                 if (p.attribution) {

@@ -13,7 +13,7 @@ class Catalogo extends Component
 {
     public $elementos = [];
 
-    public $souMonitor = false;
+    public $souMonitor = true;
 
     public $selectedElement;
 

@@ -3,8 +3,8 @@
 
     <h1>Catálogo</h1>
 
-    <button type="button" wire:click="toggleMonitor"
-        class="btn {{ $souMonitor ? 'btn-danger' : 'btn-primary' }}">Sou Monitor</button>
+    {{-- <button type="button" wire:click="toggleMonitor"
+        class="btn {{ $souMonitor ? 'btn-danger' : 'btn-primary' }}">Sou Monitor</button> --}}
 
     <div class="row g-3 mt-2">
         {{-- SIDEBAR: lista com scroll próprio --}}

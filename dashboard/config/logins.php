@@ -15,6 +15,6 @@ return [
     [
         'user' => 'monitor@gmail.com',
         'password' => '123456',
-        'type' => 1
+        'type' => 2
     ],
 ];

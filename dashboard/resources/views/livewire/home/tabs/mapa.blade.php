@@ -1,9 +1,14 @@
 <div>
     @include('livewire.home.partials.alerts')
+    @php
+        $type = session('login')['type'] ?? null;
+    @endphp
 
     <h1>Aqui pode encontrar tudo o que já assinalamos!</h1>
-    <a wire:click="exportGeoJSON" class="btn btn-primary mb-3">Exportar GeoJSON</a>
-    <a wire:click="exportCSV" class="btn btn-secondary mb-3">Exportar CSV</a>
+    @if ($type == 2)
+        <a wire:click="exportGeoJSON" class="btn btn-primary mb-3">Exportar GeoJSON</a>
+        <a wire:click="exportCSV" class="btn btn-secondary mb-3">Exportar CSV</a>
+    @endif
     @php
         $byCategory = array_count_values(array_column($points, 'category'));
         $stats = [
