@@ -54,7 +54,7 @@ def cluster(
                 if img_id is not None and img_id in b_imgs:
                     continue
 
-                if use_ray_check and is_ray_consistent(
+                if use_ray_check and not is_ray_consistent(
                     cluster_obs=b_obs,
                     candidate=obs,
                     images_by_id=images_by_id,

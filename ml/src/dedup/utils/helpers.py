@@ -43,7 +43,7 @@ def build_rays(
             RayObservation(
                 camera_lat=cam.lat,
                 camera_lon=cam.lon,
-                bearing_deg=obs.bearing_deg,
+                bearing_deg=obs.bearing_deg % 360,
                 uncertainty_m=obs.uncertainty_m
                 if obs.uncertainty_m is not None
                 else 3.0,

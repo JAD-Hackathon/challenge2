@@ -30,7 +30,7 @@ class AssetDeduplicator:
         self.cfg = cfg
         self.taxonomy = taxonomy or get_taxonomy()
 
-    def dedublicate(self, request: DedupRequest) -> DedupResponse:
+    def deduplicate(self, request: DedupRequest) -> DedupResponse:
         """Execute deduplication while preserving human-verified/corrected Elements."""
         images_by_id: dict[str, CameraMeta] = {
             img.image_id: img for img in request.images
@@ -140,7 +140,7 @@ class AssetDeduplicator:
     ) -> tuple[list[Element], list[Observation]]:
         """Attach nearby observations to existing verified/corrected elements without moving them."""
         buckets: dict[str, list[str]] = {
-            el.element_id: el.observation_ids for el in locked_elements
+            el.element_id: el.observation_ids.copy() for el in locked_elements
         }
         remaining: list[Observation] = []
 
