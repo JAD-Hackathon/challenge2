@@ -49,8 +49,13 @@ class API extends Controller
     {
         $request = Http::timeout(600);
 
+        // ['images' => [$f1, $f2]] anexa cada ficheiro com o mesmo nome de campo; null é ignorado
         foreach ($files as $name => $file) {
-            $request = $request->attach($name, fopen($file->getRealPath(), 'r'), $file->getClientOriginalName());
+            foreach (is_array($file) ? $file : [$file] as $f) {
+                if ($f) {
+                    $request = $request->attach($name, fopen($f->getRealPath(), 'r'), $f->getClientOriginalName());
+                }
+            }
         }
 
         $api = $request->post(env('API_URL') . "{$endpoint}", $fields);

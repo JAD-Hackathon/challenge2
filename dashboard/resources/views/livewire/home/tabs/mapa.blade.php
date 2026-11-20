@@ -52,30 +52,32 @@
 
 
 
-    <div class="row">
+    <div class="row g-3">
 
-        <div class="col-10">
-            <div id="map" data-points='@json($points)' style="height: 500px; width: 100%;" wire:ignore>
+        <div class="col-12 col-lg-10">
+            <div id="map" class="map-canvas" data-points='@json($points)' wire:ignore>
             </div>
 
         </div>
-        <div class="col-2">
+        <div class="col-12 col-lg-2">
             <div class="card">
                 <div class="card-header">
                     Legenda:
                 </div>
 
-                <div class="card-body">
+                <div class="card-body map-legend">
                     @foreach ($legend as $group => $items)
-                        <h6 class="legend-group">{{ $group }}</h6>
-                        <ul class="list-unstyled mb-3">
-                            @foreach ($items as $item)
-                                <li class="legend-item">
-                                    <img src="{{ $item['icon'] }}" alt="" class="legend-icon">
-                                    {{ $item['label'] }}
-                                </li>
-                            @endforeach
-                        </ul>
+                        <div>
+                            <h6 class="legend-group">{{ $group }}</h6>
+                            <ul class="list-unstyled mb-3">
+                                @foreach ($items as $item)
+                                    <li class="legend-item">
+                                        <img src="{{ $item['icon'] }}" alt="" class="legend-icon">
+                                        {{ $item['label'] }}
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
                     @endforeach
                 </div>
             </div>

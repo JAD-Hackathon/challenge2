@@ -20,6 +20,12 @@ class Mapa extends Component
             $elements = [];
         }
 
+        // FILTRO PARA NÃO MOSTRAR SE NÃO FOREM CORRIGIDOS OU VERIFICADOS
+        $elements = array_values(array_filter(
+            $elements,
+            fn($element) => in_array($element['status'] ?? null, ['verified', 'corrected'])
+        ));
+
         $this->points = array_map(fn ($element) => [
             'id' => $element['id'],
             'lat' => (float) $element['latitude'],

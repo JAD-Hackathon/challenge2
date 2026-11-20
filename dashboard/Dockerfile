@@ -17,6 +17,13 @@ FROM php:8.4-cli
 RUN apt-get update && apt-get install -y --no-install-recommends libzip-dev \
  && docker-php-ext-install exif zip \
  && rm -rf /var/lib/apt/lists/*
+# Limites de upload (vídeos): por omissão o PHP só aceita 2M por ficheiro / 8M por pedido
+RUN { \
+      echo 'upload_max_filesize=512M'; \
+      echo 'post_max_size=512M'; \
+      echo 'memory_limit=512M'; \
+      echo 'max_input_time=600'; \
+    } > /usr/local/etc/php/conf.d/uploads.ini
 WORKDIR /var/www
 COPY . .
 COPY --from=vendor /app/vendor ./vendor

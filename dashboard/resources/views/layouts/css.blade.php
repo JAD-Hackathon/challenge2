@@ -102,6 +102,28 @@
         flex-shrink: 0;
     }
 
+    .map-canvas {
+        width: 100%;
+        height: 500px;
+    }
+
+    /* Telefone/tablet: legenda passa para baixo do mapa, grupos lado a lado */
+    @media (max-width: 991.98px) {
+        .map-canvas {
+            height: 380px;
+        }
+
+        .map-legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            column-gap: 16px;
+        }
+
+        .map-legend ul {
+            margin-bottom: 8px !important;
+        }
+    }
+
     .stat-card {
         display: flex;
         align-items: center;
