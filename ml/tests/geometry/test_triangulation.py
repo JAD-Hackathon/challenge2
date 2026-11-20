@@ -5,7 +5,7 @@ from pydantic import ValidationError
 
 from src.geometry.triangulation import (
     RayObservation,
-    _max_pairwise_angle_deg,
+    max_pairwise_angle_deg,
     triangulate_rays,
 )
 
@@ -42,7 +42,7 @@ A, B, TARGET = (-10, 0), (10, 0), (0, 20)
     ],
 )
 def test_max_pairwise_angle(bearings, expected):
-    assert _max_pairwise_angle_deg(bearings) == pytest.approx(expected)
+    assert max_pairwise_angle_deg(bearings) == pytest.approx(expected)
 
 
 # --- input models ---------------------------------------------------------
