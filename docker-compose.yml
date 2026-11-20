@@ -21,13 +21,15 @@ services:
         TORCH_VARIANT: ${TORCH_VARIANT:-cpu}
     environment:
       ML_SHARED_DIR: /data
-      ML_MOCK: ${ML_MOCK:-true}
+      ML_MOCK: ${ML_MOCK:-false}
       ML_DEVICE: ${ML_DEVICE:-auto}
+      HF_HOME: /hf-cache # /ml/weights is mounted read-only
     ports:
       - "8001:8000"
     volumes:
       - shared:/data
       - ./ml/weights:/ml/weights:ro
+      - hfcache:/hf-cache # writable HuggingFace cache (RT-DETR is downloaded on first start)
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
@@ -54,6 +56,19 @@ services:
       ml:
         condition: service_started
 
+  dashboard:
+    build: ./dashboard
+    env_file: dashboard/.env        # APP_KEY etc.
+    environment:
+      API_URL: http://api:8000/api/v1/        # chamadas do servidor PHP
+      API_PUBLIC_URL: http://localhost:8000   # links que o browser abre
+      APP_URL: http://localhost:8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      - api
+
 volumes:
   pgdata:
   shared: # blurred images: ML writes, API reads
+  hfcache: # HuggingFace model cache for the ML service

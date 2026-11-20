@@ -17,6 +17,13 @@ class Catalogo extends Component
 
     public $selectedElement;
 
+    // Filtros da lista
+    public $search = '';
+    public $filterCategory = '';   // sign | light | waste
+    public $filterStatus = '';     // auto | verified | corrected
+    public $maxConfidence = 100;   // mostra só elementos com confiança <= este valor (%)
+    public $sort = 'confidence_asc';
+
     // Edição do elemento selecionado ("Mudar informações")
     public $editing = false;
     public $editForm = [];
@@ -31,6 +38,39 @@ class Catalogo extends Component
         }
 
         $this->elementos = $elements;
+    }
+
+    // Lista depois de aplicar os filtros e a ordenação (usada na view como $this->filtered)
+    public function getFilteredProperty(): array
+    {
+        $search = mb_strtolower(trim($this->search));
+
+        $list = array_filter($this->elementos, function ($e) use ($search) {
+            return ($search === '' || str_contains(mb_strtolower($e['name'] ?? ''), $search))
+                && ($this->filterCategory === '' || $e['category'] === $this->filterCategory)
+                && ($this->filterStatus === '' || ($e['status'] ?? null) === $this->filterStatus)
+                && round(($e['confidence'] ?? 0) * 100) <= (int) $this->maxConfidence;
+        });
+
+        usort($list, match ($this->sort) {
+            'confidence_desc' => fn ($a, $b) => $b['confidence'] <=> $a['confidence'],
+            'name' => fn ($a, $b) => strcasecmp($a['name'], $b['name']),
+            default => fn ($a, $b) => $a['confidence'] <=> $b['confidence'],
+        });
+
+        return $list;
+    }
+
+    // Atalho "Rever": por rever, confiança mais baixa primeiro
+    public function filterToReview()
+    {
+        $this->filterStatus = 'auto';
+        $this->sort = 'confidence_asc';
+    }
+
+    public function clearFilters()
+    {
+        $this->reset('search', 'filterCategory', 'filterStatus', 'maxConfidence', 'sort');
     }
 
     public function toggleMonitor()
@@ -64,6 +104,7 @@ class Catalogo extends Component
         // Campos já prontos para mostrar
         $element['icon'] = Elementos::setIcon($element['category'], $element['type']);
         $element['image_url'] = Elementos::mediaUrl($element['image_url'] ?? null);
+        $element['box_color'] = Elementos::boxColor($element['category']);
 
         $this->selectedElement = $element;
         $this->editing = false;
@@ -132,6 +173,7 @@ class Catalogo extends Component
 
         $element['icon'] = Elementos::setIcon($element['category'], $element['type']);
         $element['image_url'] = Elementos::mediaUrl($element['image_url'] ?? null);
+        $element['box_color'] = Elementos::boxColor($element['category']);
         $this->selectedElement = $element;
         $this->editing = false;
 
@@ -182,6 +224,12 @@ class Catalogo extends Component
             session()->flash('error', "Não foi possível marcar como verificado: {$element['error']}");
             return;
         }
+
+        // Atualiza o estado na lista, para os filtros refletirem a mudança
+        $this->elementos = array_map(
+            fn ($e) => $e['id'] === $id ? array_merge($e, ['status' => $element['status'] ?? 'verified']) : $e,
+            $this->elementos
+        );
 
         session()->flash('message', "\"{$element['name']}\" foi marcado como Verificado.");
         $this->selectedElement = null;

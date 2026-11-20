@@ -230,6 +230,13 @@
         color: #0b1f4d;
     }
 
+    /* Filtros por cima da lista do catálogo */
+    .catalog-filters {
+        padding: 10px 12px;
+        border-bottom: 1px solid #e6ebf3;
+        background: #f8fafd;
+    }
+
     .catalog-sidebar-list {
         flex: 1;
         overflow-y: auto;
@@ -312,9 +319,114 @@
 
     .element-detail-photo {
         flex: 0 0 38%;
-        max-height: 240px;
-        object-fit: cover;
-        /* corta a foto em vez de a esticar */
+        align-self: flex-start;
+        /* foto inteira (sem cortar), para as bounding boxes ficarem no sítio certo */
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+
+    /* Mapa: popup do marcador com localização e foto */
+    .map-popup-coords {
+        margin: 2px 0 8px;
+        font-size: .8rem;
+    }
+
+    .map-popup-photo {
+        position: relative;
+        line-height: 0;
+    }
+
+    .map-popup-photo img {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-radius: 6px;
+    }
+
+    .map-popup-box {
+        display: none; /* aparece quando a foto carrega e se sabe o tamanho */
+        position: absolute;
+        border: 2px solid #0d6efd;
+        pointer-events: none;
+    }
+
+    .map-popup-credit {
+        margin-top: 4px;
+        font-size: .7rem;
+        color: #6c757d;
+    }
+
+    /* Foto em grande com bounding boxes (abre ao clicar numa foto) */
+    .photo-lightbox {
+        position: fixed;
+        inset: 0;
+        z-index: 2100; /* por cima do modal e do ecrã de espera */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(0, 0, 0, .85);
+        cursor: zoom-out;
+    }
+
+    .photo-lightbox-frame {
+        position: relative;
+        line-height: 0;
+        cursor: default;
+    }
+
+    .photo-lightbox-frame img {
+        display: block;
+        max-width: calc(100vw - 32px);
+        max-height: calc(100vh - 32px);
+        border-radius: 6px;
+    }
+
+    .photo-lightbox-box {
+        position: absolute;
+        border: 3px solid #0d6efd;
+        pointer-events: none;
+    }
+
+    .photo-lightbox-box span {
+        position: absolute;
+        bottom: 100%;
+        left: -3px;
+        padding: 2px 6px;
+        font-size: .8rem;
+        line-height: 1.3;
+        color: #fff;
+        white-space: nowrap;
+    }
+
+    .photo-lightbox-close {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+    }
+
+    /* Experimenta: ecrã de espera com o fundo desfocado */
+    .processing-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 2000; /* por cima do modal e do mapa */
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(255, 255, 255, .45);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+    }
+
+    .processing-box {
+        max-width: 360px;
+        padding: 24px 28px;
+        text-align: center;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, .15);
     }
 
     .element-detail .card-body {
@@ -334,7 +446,7 @@
         }
 
         .element-detail-photo {
-            max-height: 160px;
+            flex-basis: auto;
         }
     }
 

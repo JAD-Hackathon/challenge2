@@ -27,6 +27,10 @@ class Mapa extends Component
             'name' => $element['name'],
             'category' => $element['category'],
             'icon' => Elementos::setIcon($element['category'], $element['type']),
+            'image_url' => Elementos::mediaUrl($element['image_url'] ?? null),
+            'bbox' => $element['bbox_xyxy'] ?? null,
+            'color' => Elementos::boxColor($element['category']),
+            'attribution' => $element['attribution'] ?? null,
         ], $elements);
     }
 

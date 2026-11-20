@@ -10,13 +10,68 @@
         {{-- SIDEBAR: lista com scroll próprio --}}
         <div class="col-md-5 col-lg-4">
             <div class="catalog-sidebar">
+                @php $filtered = $this->filtered; @endphp
                 <div class="catalog-sidebar-header">
                     Elementos
-                    <span class="badge text-bg-primary rounded-pill">{{ count($elementos ?? []) }}</span>
+                    <span class="badge text-bg-primary rounded-pill">
+                        {{ count($filtered) }}@if (count($filtered) !== count($elementos ?? [])) / {{ count($elementos) }}@endif
+                    </span>
                 </div>
 
-                <div class="catalog-sidebar-list">
-                    @forelse ($elementos ?? [] as $item)
+                {{-- FILTROS --}}
+                <div class="catalog-filters">
+                    <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="search" class="form-control" placeholder="Pesquisar por nome…"
+                            wire:model.live.debounce.300ms="search">
+                    </div>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <select class="form-select form-select-sm" wire:model.live="filterCategory" aria-label="Categoria">
+                                <option value="">Todas as categorias</option>
+                                <option value="sign">Sinais</option>
+                                <option value="light">Iluminação</option>
+                                <option value="waste">Resíduos</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <select class="form-select form-select-sm" wire:model.live="filterStatus" aria-label="Estado">
+                                <option value="">Todos os estados</option>
+                                <option value="auto">Por rever</option>
+                                <option value="verified">Verificados</option>
+                                <option value="corrected">Corrigidos</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <label class="form-label small d-flex justify-content-between mb-0">
+                        <span>Confiança até</span>
+                        <strong>{{ $maxConfidence }}%</strong>
+                    </label>
+                    <input type="range" class="form-range" min="0" max="100" step="5"
+                        wire:model.live.debounce.150ms="maxConfidence">
+
+                    <div class="d-flex gap-2 align-items-center">
+                        <select class="form-select form-select-sm" wire:model.live="sort" aria-label="Ordenar">
+                            <option value="confidence_asc">Menor confiança primeiro</option>
+                            <option value="confidence_desc">Maior confiança primeiro</option>
+                            <option value="name">Nome (A–Z)</option>
+                        </select>
+                        <button type="button" class="btn btn-sm btn-outline-warning text-nowrap" wire:click="filterToReview"
+                            title="Por rever, menor confiança primeiro">
+                            <i class="bi bi-funnel"></i> Rever
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="clearFilters"
+                            title="Limpar filtros" aria-label="Limpar filtros">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="catalog-sidebar-list" wire:loading.class="opacity-50"
+                    wire:target="search,filterCategory,filterStatus,maxConfidence,sort,filterToReview,clearFilters">
+                    @forelse ($filtered as $item)
                         @php $selected = ($selectedElement['id'] ?? null) === $item['id']; @endphp
                         <button type="button" wire:key="el-{{ $item['id'] }}"
                             class="catalog-item {{ $selected ? 'active' : '' }}"
@@ -39,7 +94,9 @@
                             </span>
                         </button>
                     @empty
-                        <p class="text-muted p-3 mb-0">Ainda não há elementos.</p>
+                        <p class="text-muted p-3 mb-0">
+                            {{ count($elementos ?? []) ? 'Nenhum elemento corresponde aos filtros.' : 'Ainda não há elementos.' }}
+                        </p>
                     @endforelse
                 </div>
             </div>
@@ -143,7 +200,8 @@
                     {{-- Foto à esquerda, detalhes à direita (fica mais baixo) --}}
                     <div class="element-detail-content">
                     @if ($el['image_url'])
-                        <img src="{{ $el['image_url'] }}" alt="Foto do elemento" class="element-detail-photo">
+                        <x-photo-boxes class="element-detail-photo" :src="$el['image_url']" alt="Foto do elemento"
+                            :boxes="! empty($el['bbox_xyxy']) ? [['bbox' => $el['bbox_xyxy'], 'label' => $el['name'], 'color' => $el['box_color'] ?? null]] : []" />
                     @endif
 
                     <div class="card-body">
@@ -154,21 +212,22 @@
                             <dd class="col-sm-3 col-7">{{ round($el['confidence'] * 100) }}%</dd>
 
                             <dt class="col-sm-3 col-5">Categoria</dt>
-                            <dd class="col-sm-3 col-7">
-                                {{ $el['category'] }}{{ $el['type'] ? ' / ' . $el['type'] : '' }}</dd>
+                            <dd class="col-sm-3 col-7">{{ \App\Support\Elementos::categoryLabel($el['category']) }}</dd>
+
+                            <dt class="col-sm-3 col-5">Tipo</dt>
+                            <dd class="col-sm-3 col-7">{{ \App\Support\Elementos::typeLabel($el['category'], $el['type']) }}</dd>
 
                             {{-- Atributos extra, ex.: limite de velocidade --}}
                             @foreach ($el['attributes'] ?? [] as $key => $value)
-                                <dt class="col-sm-3 col-5">{{ $key === 'limit' ? 'Limite' : ucfirst($key) }}</dt>
-                                <dd class="col-sm-3 col-7">
-                                    {{ $key === 'limit' ? "{$value} km/h" : (is_array($value) ? json_encode($value) : $value) }}
-                                </dd>
+                                <dt class="col-sm-3 col-5">{{ \App\Support\Elementos::attributeLabel($key) }}</dt>
+                                <dd class="col-sm-3 col-7">{{ \App\Support\Elementos::attributeValue($key, $value) }}</dd>
                             @endforeach
 
                             <dt class="col-sm-3 col-5">Localização</dt>
                             <dd class="col-sm-3 col-7">
                                 <a href="https://www.openstreetmap.org/?mlat={{ $el['latitude'] }}&mlon={{ $el['longitude'] }}#map=19/{{ $el['latitude'] }}/{{ $el['longitude'] }}"
-                                    target="_blank" rel="noopener">
+                                    target="_blank" rel="noopener noreferrer"
+                                    x-data x-on:click.prevent="window.open($el.href, '_blank', 'noopener,noreferrer')">
                                     {{ number_format($el['latitude'], 6) }},
                                     {{ number_format($el['longitude'], 6) }}
                                 </a>

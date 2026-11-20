@@ -3,8 +3,8 @@
 namespace App\Http\Livewire\Home\Tabs;
 
 use App\Http\Controllers\API;
-use App\Http\Controllers\Controller;
 use App\Support\Elementos;
+use App\Support\PhotoLocation;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -15,34 +15,34 @@ class Experimenta extends Component
 
     public $file;
 
-    // Localização da foto (lida do EXIF)
+    // Localização da foto: lida automaticamente (EXIF, Mapillary)
     public $lat;
     public $lon;
-    public $heading = 0;
+    public $heading;
 
     // Resultado do último envio, mostrado no modal (null = modal fechado)
     public $result = null;
 
     public function updatedFile()
     {
-        $this->lat = $this->lon = null;
-        $this->heading = 0;
+        $this->lat = $this->lon = $this->heading = null;
+        $this->readLocation();
+    }
 
+    // Lê lat/lon/heading da foto (EXIF, depois Mapillary pelo nome do ficheiro)
+    private function readLocation(): void
+    {
         $extension = strtolower($this->file?->getClientOriginalExtension() ?? '');
-        if (! in_array($extension, ['jpg', 'jpeg'])) {
-            return; // PNG não tem EXIF
+        if (! in_array($extension, ['jpg', 'jpeg', 'png'])) {
+            return; // vídeos: a localização vem do próprio ficheiro, no backend
         }
 
-        $exif = @exif_read_data($this->file->getRealPath());
+        $found = PhotoLocation::resolve($this->file->getRealPath(), $this->file->getClientOriginalName());
+        logger()->info('Experimenta: localização da foto', ['file' => $this->file->getClientOriginalName()] + $found);
 
-        if (! empty($exif['GPSLatitude']) && ! empty($exif['GPSLongitude'])) {
-            $this->lat = round(Controller::gpsToDecimal($exif['GPSLatitude'], $exif['GPSLatitudeRef'] ?? 'N'), 6);
-            $this->lon = round(Controller::gpsToDecimal($exif['GPSLongitude'], $exif['GPSLongitudeRef'] ?? 'E'), 6);
-        }
-
-        if (isset($exif['GPSImgDirection'])) {
-            $this->heading = round(fmod(Controller::exifFraction($exif['GPSImgDirection']), 360), 1);
-        }
+        $this->lat = $found['lat'];
+        $this->lon = $found['lon'];
+        $this->heading = $found['heading'];
     }
 
     public function processFile()
@@ -56,7 +56,7 @@ class Experimenta extends Component
             'file.max' => 'O tamanho do arquivo não deve exceder 5MB.',
         ]);
 
-        $extension = $this->file->getClientOriginalExtension();
+        $extension = strtolower($this->file->getClientOriginalExtension());
 
         if (in_array($extension, ['mp4', 'mov'])) {
             $video = API::getData('videos', [
@@ -64,31 +64,19 @@ class Experimenta extends Component
                 'track' => $this->file->getClientOriginalName(),
             ]);
         } elseif (in_array($extension, ['jpg', 'jpeg', 'png'])) {
-            $exif = @exif_read_data($this->file->getRealPath());
+            // Volta a ler do ficheiro se os valores não ficaram guardados desde o upload
+            if ($this->lat === null || $this->lon === null || $this->heading === null) {
+                $this->readLocation();
+            }
 
-            if ($exif === false) {
-                session()->flash('error', 'Não foi possível ler os metadados da imagem.');
+            // Sem localização (nem no EXIF, nem no Mapillary): não envia
+            if ($this->lat === null || $this->lon === null || $this->heading === null) {
                 return;
             }
 
-            if (! isset($exif['GPSLatitude'], $exif['GPSLatitudeRef'], $exif['GPSLongitude'], $exif['GPSLongitudeRef'])) {
-                session()->flash('error', 'A imagem não tem localização GPS. Use uma foto tirada com a localização ativada.');
-                return;
-            }
-
-            if (! isset($exif['GPSImgDirection'])) {
-                session()->flash('error', 'A imagem não tem a direção da câmara (GPSImgDirection).');
-                return;
-            }
-
-            // LATITUDE
-            $latitude = Controller::gpsToDecimal($exif['GPSLatitude'], $exif['GPSLatitudeRef']);
-
-            // LONGITUDE
-            $longitude = Controller::gpsToDecimal($exif['GPSLongitude'], $exif['GPSLongitudeRef']);
-
-            // HEADING (0–360, "360" passa a 0)
-            $heading = fmod(Controller::exifFraction($exif['GPSImgDirection']), 360);
+            $latitude = (float) $this->lat;
+            $longitude = (float) $this->lon;
+            $heading = fmod((float) $this->heading, 360); // "360" passa a 0
 
             $imagem = API::sendFiles('images', ['images' => $this->file], [
                 'metas' => json_encode([[
@@ -107,6 +95,7 @@ class Experimenta extends Component
             $this->showResult($imagem['data']);
 
             $this->file = null;
+            $this->lat = $this->lon = $this->heading = null;
         } else {
             session()->flash('error', 'Tipo de arquivo não suportado.');
             return;
@@ -125,7 +114,28 @@ class Experimenta extends Component
                 'confidence' => round(($element['confidence'] ?? 0) * 100), // 0.87 -> 87
                 'icon' => Elementos::setIcon($element['category'], $element['type']),
             ], $data['elements'] ?? []),
+            'image_url' => null,
+            'boxes' => [],
         ];
+
+        if (($image['status'] ?? null) === 'failed' || empty($image['image_id'])) {
+            return;
+        }
+
+        // Imagem desfocada + deteções (bbox_xyxy em píxeis dessa imagem, desenhadas com <x-photo-boxes>)
+        $detail = API::getData('images/' . $image['image_id']);
+        if (isset($detail['error'])) {
+            return;
+        }
+
+        $names = collect($data['elements'] ?? [])->pluck('name', 'id');
+
+        $this->result['image_url'] = Elementos::mediaUrl($detail['image_url'] ?? null);
+        $this->result['boxes'] = array_map(fn ($obs) => [
+            'bbox' => $obs['bbox_xyxy'],
+            'label' => ($names[$obs['element_id'] ?? ''] ?? Elementos::typeLabel($obs['type'])) . ' · ' . round($obs['score'] * 100) . '%',
+            'color' => Elementos::boxColor(explode('.', $obs['type'])[0]),
+        ], $detail['observations'] ?? []);
     }
 
     public function closeResult()

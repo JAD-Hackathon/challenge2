@@ -1,4 +1,5 @@
 <div>
+    
     @include('livewire.home.partials.alerts')
 
     <h1>Aqui podes colocar uma foto/video e o vamos-te dizer onde é e o que aparece!</h1>
@@ -12,17 +13,29 @@
                 @error('file')
                     <span class="text-danger">{{ $message }}</span>
                 @enderror
-                <button type="button" class="btn btn-primary mt-4" wire:click="processFile">Enviar</button>
+                <div wire:loading wire:target="file" class="text-muted small mt-1">A ler a localização da foto…</div>
+
+                <button type="button" class="btn btn-primary mt-4" wire:click="processFile"
+                    wire:loading.attr="disabled" wire:target="file,processFile">Enviar</button>
 
             </div>
         </div>
     </form>
 
+    {{-- LOADING: ecrã desfocado enquanto a foto/vídeo é processada --}}
+    <div wire:loading.flex wire:target="processFile" class="processing-overlay" role="status" aria-live="polite">
+        <div class="processing-box">
+            <div class="spinner-border text-primary mb-3" aria-hidden="true"></div>
+            <h5 class="mb-1">A processar…</h5>
+            <p class="text-muted mb-0">Estamos a analisar a tua foto. Isto pode demorar alguns segundos, aguarda por favor.</p>
+        </div>
+    </div>
+
     {{-- MODAL: resultado do envio da imagem (aberto quando $result tem dados) --}}
     @if ($result)
         <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true"
             wire:keydown.escape.window="closeResult">
-            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">
@@ -44,6 +57,11 @@
                         @else
                             @if ($result['status'] === 'duplicate')
                                 <div class="alert alert-info">Esta imagem já tinha sido enviada antes.</div>
+                            @endif
+
+                            {{-- Foto desfocada com as deteções --}}
+                            @if ($result['image_url'])
+                                <x-photo-boxes class="mb-3" :src="$result['image_url']" :boxes="$result['boxes']" alt="Foto enviada" />
                             @endif
 
                             @if (count($result['elements']))
