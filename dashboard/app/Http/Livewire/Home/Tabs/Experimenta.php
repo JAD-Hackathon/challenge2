@@ -19,8 +19,6 @@ class Experimenta extends Component
     public $files = [];
     public $track;
 
-    // Resultado do último envio, mostrado no modal (null = modal fechado)
-    // ['photos' => [['name', 'status', 'error', 'elements', 'image_url', 'boxes'], ...], 'skipped' => [...], 'total' => n]
     public $result = null;
 
     public function updatedFiles()

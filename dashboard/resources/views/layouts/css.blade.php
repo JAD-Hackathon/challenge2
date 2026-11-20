@@ -10,6 +10,25 @@
         box-shadow: 0 4px 18px rgba(11, 31, 77, .3);
     }
 
+    .home-header {
+        position: relative;
+    }
+
+    /* Login / utilizador no canto superior direito do cabeçalho */
+    .home-auth {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .home-auth-user {
+        font-size: .9rem;
+        opacity: .9;
+    }
+
     .home-title {
         margin: 0;
         font-size: clamp(2.2rem, 6vw, 4rem);

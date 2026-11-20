@@ -6,7 +6,6 @@ use App\Http\Controllers\API;
 use App\Support\Elementos;
 use Livewire\Component;
 
-// Separador "Página Inicial": estatísticas, mapa, legenda e exportação
 class Mapa extends Component
 {
     public $points = [];

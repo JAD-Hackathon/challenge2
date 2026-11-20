@@ -2,6 +2,17 @@
 <div>
     @include('layouts.css')
     <header class="home-header">
+        <div class="home-auth">
+            @if (session('login'))
+                <span class="home-auth-user"><i class="bi bi-person-circle"></i> {{ session('login.user') }}</span>
+                <button type="button" class="btn btn-sm btn-outline-light" wire:click="logout">Sair</button>
+            @else
+                <button type="button" class="btn btn-sm btn-light" wire:click="openLogin">
+                    <i class="bi bi-box-arrow-in-right"></i> Login
+                </button>
+            @endif
+        </div>
+
         <h1 class="home-title">Desafio 2</h1>
         <p class="home-subtitle">Hackathon Aveiro 2026</p>
     </header>
@@ -15,6 +26,59 @@
             wire:click="changeAba('3')">Catálogo</button>
     </nav>
 
+    {{-- MODAL: login (aberto com $showLogin) --}}
+    @if ($showLogin)
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true"
+            aria-labelledby="loginTitle" wire:keydown.escape.window="closeLogin">
+            <div class="modal-dialog modal-dialog-centered">
+                <form class="modal-content" wire:submit="login">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="loginTitle">Iniciar sessão</h5>
+                        <button type="button" class="btn-close" aria-label="Fechar" wire:click="closeLogin"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="loginEmail" class="form-label">Email</label>
+                            <input type="email" id="loginEmail" class="form-control @error('email') is-invalid @enderror"
+                                wire:model="email" autocomplete="username" autofocus>
+                            @error('email')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="loginPassword" class="form-label">Palavra-passe</label>
+                            <input type="password" id="loginPassword"
+                                class="form-control @error('password') is-invalid @enderror" wire:model="password"
+                                autocomplete="current-password">
+                            @error('password')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeLogin">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" wire:loading.attr="disabled" wire:target="login">
+                            <span wire:loading wire:target="login" class="spinner-border spinner-border-sm me-1"
+                                aria-hidden="true"></span>
+                            Entrar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show" wire:click="closeLogin"></div>
+    @endif
+
+    @php 
+
+        $session = session('login')
+
+    @endphp 
+
+    {{ $session }}
     {{-- Cada separador é um componente: app/Http/Livewire/Home/Tabs/*.php --}}
     <div class="container py-4">
         @if ($aba == '1')
